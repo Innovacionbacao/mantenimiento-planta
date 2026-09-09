@@ -1,0 +1,618 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Órdenes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#E7E9E4">
+<title>Órdenes de mantenimiento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#E7E9E4; --card:#FFFFFF; --ink:#141917; --ink-2:#5C6660;
+    --line:#CFD4CD; --line-2:#E4E7E2;
+    --accent:#F0A202; --accent-ink:#3A2900;
+    --ok:#2C6E49; --alert:#A62B1F; --info:#245D7A;
+    --r:10px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:16px; line-height:1.45; font-feature-settings:"tnum" 1;
+    padding-bottom:96px;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:0 14px}
+
+  /* Encabezado */
+  header{
+    position:sticky;top:0;z-index:30;background:var(--bg);
+    border-bottom:1px solid var(--line);
+    padding-top:env(safe-area-inset-top);
+  }
+  .hd{display:flex;align-items:baseline;gap:10px;padding:12px 14px 10px;max-width:520px;margin:0 auto}
+  .hd h1{font-size:17px;font-weight:600;margin:0;letter-spacing:-.01em}
+  .hd .ot{margin-left:auto;font-size:13px;color:var(--ink-2)}
+  .hd .ot b{color:var(--ink);font-weight:600}
+
+  /* Pestañas */
+  .tabs{display:flex;gap:0;max-width:520px;margin:0 auto;padding:0 14px}
+  .tab{
+    flex:1;padding:9px 4px 11px;background:none;border:0;border-bottom:2px solid transparent;
+    font:inherit;font-size:14px;color:var(--ink-2);cursor:pointer
+  }
+  .tab[aria-selected="true"]{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+  .tab .pill{
+    display:inline-block;min-width:19px;padding:0 5px;margin-left:5px;border-radius:9px;
+    background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:600;line-height:19px
+  }
+
+  /* Secciones del formulario */
+  section{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin:14px 0;overflow:hidden}
+  .shd{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line-2)}
+  .shd h2{font-size:14px;font-weight:600;margin:0}
+  .cols{font-size:11px;color:var(--ink-2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;letter-spacing:.02em}
+  .shd.click{cursor:pointer;user-select:none;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;font:inherit}
+  .chev{margin-left:auto;color:var(--ink-2);font-size:13px;transition:transform .18s ease}
+  .open .chev{transform:rotate(180deg)}
+  .body{padding:4px 14px 14px}
+  .hide{display:none}
+
+  label{display:block;font-size:13px;color:var(--ink-2);margin:12px 0 5px}
+  label span.req{color:var(--alert)}
+  input,select,textarea,button{font:inherit;color:var(--ink)}
+  input[type=text],input[type=number],input[type=date],select,textarea{
+    width:100%;padding:11px 12px;background:#fff;border:1px solid var(--line);
+    border-radius:8px;appearance:none
+  }
+  select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' fill='none' stroke='%235C6660' stroke-width='1.6'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+  textarea{min-height:74px;resize:vertical}
+  input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .row{display:flex;gap:10px}
+  .row>div{flex:1;min-width:0}
+  .auto{font-size:13px;color:var(--ink-2);padding:9px 0 0}
+  .auto b{color:var(--ink);font-weight:500}
+  .err{border-color:var(--alert)!important;background:#FDF3F2}
+
+  /* Buscador de listas largas */
+  .picker{position:relative}
+  .picker .chosen{
+    display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:11px 12px;
+    background:#fff;border:1px solid var(--line);border-radius:8px;cursor:pointer
+  }
+  .picker .chosen span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .picker .chosen.empty span{color:#9AA39D}
+  .sheet{
+    position:fixed;inset:0;z-index:60;background:rgba(20,25,23,.45);display:flex;align-items:flex-end
+  }
+  .sheet .panel{
+    background:var(--card);width:100%;max-width:520px;margin:0 auto;border-radius:14px 14px 0 0;
+    max-height:82vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)
+  }
+  .sheet .top{padding:12px 14px;border-bottom:1px solid var(--line-2);display:flex;gap:10px;align-items:center}
+  .sheet .top strong{font-size:14px;font-weight:600}
+  .sheet input{margin:0}
+  .sheet .list{overflow:auto;-webkit-overflow-scrolling:touch}
+  .sheet .opt{
+    display:block;width:100%;text-align:left;padding:13px 14px;background:none;border:0;
+    border-bottom:1px solid var(--line-2);cursor:pointer;font-size:15px
+  }
+  .sheet .opt small{display:block;color:var(--ink-2);font-size:12px}
+  .sheet .opt:active{background:#F4F5F2}
+  .sheet .close{background:none;border:0;color:var(--ink-2);font-size:22px;line-height:1;padding:4px 6px;cursor:pointer}
+
+  /* Barra de guardado */
+  .savebar{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(231,233,228,.96);
+    border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom))
+  }
+  .savebar .inner{max-width:520px;margin:0 auto;display:flex;gap:10px;align-items:center}
+  .btn{
+    padding:13px 16px;border-radius:9px;border:1px solid var(--line);background:#fff;
+    font-weight:500;cursor:pointer
+  }
+  .btn.main{flex:1;background:var(--accent);border-color:#D18F00;color:var(--accent-ink);font-weight:600}
+  .btn.ghost{background:none}
+  .btn:disabled{opacity:.5;cursor:default}
+
+  /* Registros guardados */
+  .item{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin:10px 0}
+  .item .l1{display:flex;gap:8px;align-items:baseline}
+  .item .n{font-weight:600}
+  .item .est{margin-left:auto;font-size:12px;color:var(--ink-2)}
+  .item .eq{font-size:14px;margin-top:2px}
+  .item .meta{font-size:12.5px;color:var(--ink-2);margin-top:3px}
+  .item .acts{display:flex;gap:8px;margin-top:10px}
+  .item .acts button{font-size:13px;padding:7px 11px;border-radius:7px;border:1px solid var(--line);background:none;cursor:pointer}
+  .item .acts .del{color:var(--alert);border-color:#E4C9C6}
+  .empty{text-align:center;color:var(--ink-2);padding:34px 16px;font-size:14.5px}
+  .empty p{margin:0 0 4px}
+
+  .note{font-size:13px;color:var(--ink-2);background:#fff;border:1px solid var(--line);
+    border-left:3px solid var(--accent);border-radius:8px;padding:11px 13px;margin:14px 0}
+  .note code{background:#F1F2EF;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;
+    background:var(--ink);color:#fff;padding:11px 16px;border-radius:9px;font-size:14px;
+    opacity:0;pointer-events:none;transition:opacity .2s ease;max-width:88vw;text-align:center
+  }
+  .toast.show{opacity:1}
+  .setting{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--ink-2);margin:10px 0}
+  .setting select,.setting input{width:auto;padding:7px 10px;font-size:13.5px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header>
+  <div class="hd">
+    <h1>Órdenes de mantenimiento</h1>
+    <div class="ot">OT <b id="otnum">—</b></div>
+  </div>
+  <div class="tabs" role="tablist">
+    <button class="tab" id="tab-form" role="tab" aria-selected="true">Nueva orden</button>
+    <button class="tab" id="tab-list" role="tab" aria-selected="false">Guardadas<span class="pill" id="count">0</span></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ---------- FORMULARIO ---------- -->
+  <div id="view-form">
+    <section>
+      <div class="shd"><h2>Datos de la orden</h2><span class="cols">B–L</span></div>
+      <div class="body">
+        <label for="f_fecha">Fecha de creación <span class="req">*</span></label>
+        <input type="date" id="f_fecha">
+
+        <label>Equipo <span class="req">*</span></label>
+        <div class="picker" id="p_equipo"></div>
+        <div class="auto">Área: <b id="f_area">—</b></div>
+
+        <div class="row">
+          <div>
+            <label for="f_interv">Intervención <span class="req">*</span></label>
+            <select id="f_interv"></select>
+          </div>
+          <div>
+            <label for="f_prov">Proveedor <span class="req">*</span></label>
+            <select id="f_prov"></select>
+          </div>
+        </div>
+
+        <label>Tipo de trabajo <span class="req">*</span></label>
+        <div class="picker" id="p_trabajo"></div>
+
+        <label for="f_info">Información adicional <span class="req">*</span></label>
+        <textarea id="f_info" placeholder="Qué se hizo o se va a hacer"></textarea>
+
+        <div class="row">
+          <div>
+            <label for="f_prog">Fecha programada</label>
+            <input type="date" id="f_prog">
+          </div>
+          <div>
+            <label for="f_estado">Estado</label>
+            <select id="f_estado"></select>
+          </div>
+        </div>
+        <div class="auto">Semana programación: <b id="f_semprog">—</b></div>
+      </div>
+    </section>
+
+    <section id="s_ejec">
+      <button class="shd click" type="button" data-toggle="b_ejec">
+        <h2>Ejecución</h2><span class="cols">M–T</span><span class="chev">▾</span>
+      </button>
+      <div class="body hide" id="b_ejec">
+        <div class="row">
+          <div>
+            <label for="f_horom">Horómetro (h)</label>
+            <input type="number" inputmode="decimal" step="0.01" id="f_horom">
+          </div>
+          <div>
+            <label for="f_tiempo">Duración del mtto (h)</label>
+            <input type="number" inputmode="decimal" step="0.25" id="f_tiempo">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="f_nmec"># mecánicos</label>
+            <input type="number" inputmode="numeric" step="1" id="f_nmec">
+          </div>
+          <div>
+            <label for="f_hmec">Horas mecánico</label>
+            <input type="number" inputmode="decimal" step="0.25" id="f_hmec">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="f_naux"># auxiliares</label>
+            <input type="number" inputmode="numeric" step="1" id="f_naux">
+          </div>
+          <div>
+            <label for="f_haux">Horas auxiliar</label>
+            <input type="number" inputmode="decimal" step="0.25" id="f_haux">
+          </div>
+        </div>
+        <label for="f_fin">Fecha de finalización</label>
+        <input type="date" id="f_fin">
+        <div class="auto">Semana finalización: <b id="f_semfin">—</b></div>
+      </div>
+    </section>
+
+    <section id="s_plan">
+      <button class="shd click" type="button" data-toggle="b_plan">
+        <h2>Planeación y materiales</h2><span class="cols">U–Y</span><span class="chev">▾</span>
+      </button>
+      <div class="body hide" id="b_plan">
+        <label for="f_dis">Diseños</label>
+        <select id="f_dis"></select>
+        <label for="f_ped">Pedido de materiales</label>
+        <select id="f_ped"></select>
+        <label for="f_lle">Llegada de materiales</label>
+        <select id="f_lle"></select>
+        <label for="f_ins">Insumo</label>
+        <select id="f_ins"></select>
+        <label for="f_costo">Costo del trabajo</label>
+        <input type="number" inputmode="decimal" step="1" id="f_costo">
+      </div>
+    </section>
+  </div>
+
+  <!-- ---------- GUARDADAS ---------- -->
+  <div id="view-list" class="hide">
+    <div id="list"></div>
+    <div class="note" id="pasteNote"></div>
+    <div class="setting">
+      <span>Decimales al exportar</span>
+      <select id="cfg_dec">
+        <option value=",">coma (1,5)</option>
+        <option value=".">punto (1.5)</option>
+      </select>
+    </div>
+    <div class="setting">
+      <span>Próximo número de OT</span>
+      <input type="number" id="cfg_ot" step="1" style="width:110px">
+    </div>
+  </div>
+</main>
+
+<div class="savebar" id="savebar">
+  <div class="inner" id="bar-form">
+    <button class="btn ghost" id="btnLimpiar" type="button">Limpiar</button>
+    <button class="btn main" id="btnGuardar" type="button">Guardar orden</button>
+  </div>
+  <div class="inner hide" id="bar-list">
+    <button class="btn ghost" id="btnCsv" type="button">CSV</button>
+    <button class="btn main" id="btnCopiar" type="button">Copiar para Excel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CAT = {"equipos": [{"e": "Banda de rodillos corte mazorca 1", "a": "Recepción de mazorca"}, {"e": "Banda de rodillos corte mazorca 2", "a": "Recepción de mazorca"}, {"e": "Banda de separación de cacao fresco 1 Color verde", "a": "Recepción de mazorca"}, {"e": "Banda de separación de cacao fresco 2 Color blanco", "a": "Recepción de mazorca"}, {"e": "Trasportador trituradora de cascara flexible", "a": "Recepción de mazorca"}, {"e": "Tolva y sinfín inclinado alimentador a tolva 1", "a": "Recepción de fruto fresco"}, {"e": "Banda de mazorca INALRED", "a": "Recepción de mazorca"}, {"e": "Quebradora de mazorca pinhalense", "a": "Recepción de mazorca"}, {"e": "Banda de cascara de mazorca INALRED", "a": "Recepcion de mazorca"}, {"e": "Sinfín de fruto fresco con inclinacion automatica", "a": "Recepción de fruto fresco"}, {"e": "Tolva y sinfín a centriflux 1", "a": "Recepción de fruto fresco"}, {"e": "Tolva y sinfín a centriflux 2", "a": "Recepción de fruto fresco"}, {"e": "Bomba de mucilago", "a": "Recepción de fruto fresco"}, {"e": "Bomba de CIP y línea de tubería", "a": "Recepción de fruto fresco"}, {"e": "Centriflux 1", "a": "Recepción de fruto fresco"}, {"e": "Centriflux 2", "a": "Recepción de fruto fresco"}, {"e": "Tolva de mucilago", "a": "Recepción de fruto fresco"}, {"e": "Batería de cajones anaeróbicos 1", "a": "fermentación anaeróbica"}, {"e": "Batería de cajones anaeróbicos 2", "a": "fermentación anaeróbica"}, {"e": "Cajones con rodachines", "a": "fermentación aérobica"}, {"e": "Transpaleta electrohidráulica o manual", "a": "Presecado mecánico"}, {"e": "Volteadora de cajones 1", "a": "Presecado mecánico"}, {"e": "Volteadora de cajones 2", "a": "Presecado mecánico"}, {"e": "Presecadora 1", "a": "Presecado mecánico"}, {"e": "Presecadora 2", "a": "Presecado mecánico"}, {"e": "Presecadora 3", "a": "Presecado mecánico"}, {"e": "Presecadora 4", "a": "Presecado mecánico"}, {"e": "Banda modular a presecadoras 1 y 2", "a": "Presecado mecánico"}, {"e": "Transportador sinfín a presecadoras 3 y 4", "a": "Presecado mecánico"}, {"e": "Banda salida de presecadoras 1-2-3-4", "a": "Presecado mecánico"}, {"e": "Presecadora cuadrada pequeña", "a": "Presecado mecánico"}, {"e": "Banda modular de cacao preseco a tolva", "a": "Presecado mecánico"}, {"e": "Diverter y tolva de cacao preseco", "a": "Secado mecánico"}, {"e": "Diverter y banda modular a secadoras línea 1 (Secadores 1 y 2)", "a": "secado mecánico"}, {"e": "Diverter y banda modular a secadoras línea 2 (Secadores 3 y 4)", "a": "Secado mecánico"}, {"e": "Secador multinivel 1", "a": "Secado mecánico"}, {"e": "Secador multinivel 2", "a": "Secado mecánico"}, {"e": "Secador multinivel 3", "a": "Secado mecánico"}, {"e": "Secador multinivel 4", "a": "Secado mecánico"}, {"e": "Banda modular de cacao seco línea 1 (Secadores 1 y 2)", "a": "Secado mecánico"}, {"e": "Banda modular de cacao seco línea 2 (Secadores 3 y 4)", "a": "Secado mecánico"}, {"e": "Banda trasversal de cacao seco línea 3", "a": "Bodega almacenamiento"}, {"e": "Prelimpiadora de cacao seco", "a": "Bodega almacenamiento"}, {"e": "Banda verde 1 de grano seco a tolva", "a": "Bodega almacenamiento"}, {"e": "Banda verde 2 de grano seco a tolva", "a": "Bodega almacenamiento"}, {"e": "Tolva de cacao seco", "a": "Bodega almacenamiento"}, {"e": "Ensacadora Imaquin", "a": "Bodega almacenamiento"}, {"e": "Levantador vertical de sacos", "a": "Bodega almacenamiento"}, {"e": "Banda horizontal de sacos (Recibo de ensacadora)", "a": "Bodega almacenamiento"}, {"e": "Banda de cargue con inclinación automática.", "a": "Bodega almacenamiento"}, {"e": "Banda de cargue con inclinación manual.", "a": "Bodega almacenamiento"}, {"e": "Cosedora industrial de sacos 1", "a": "Bodega almacenamiento"}, {"e": "Cosedora industrial de sacos 2", "a": "Bodega almacenamiento"}, {"e": "Marmita de 250 litros", "a": "Laboratorio de pulpa"}, {"e": "Filtro mecánico", "a": "Laboratorio de pulpa"}, {"e": "Hydroflow", "a": "Laboratorio de pulpa"}, {"e": "Lavador de mazorcas", "a": "Laboratorio de pulpa"}, {"e": "Compresor de tornillo neumático", "a": "Servicios industriales"}, {"e": "Generador CAT C7.1", "a": "Servicios industriales"}, {"e": "Sistema piloto Biodigestores", "a": "Servicios industriales"}, {"e": "Bioreactor prototipo de fermentación de 2 ton", "a": "Fermentación anaeróbica"}, {"e": "Etapa 1 (Recepción)", "a": "Recepción de fruto fresco"}, {"e": "Etapa 2 (Presecado mecánico)", "a": "Presecado mecánico"}, {"e": "Etapa 3 (Secado mecánico)", "a": "Secado mecánico"}, {"e": "Etapa 4 (Bodega almacenamiento)", "a": "Bodega almacenamiento"}, {"e": "Infraestructura", "a": "Postcosecha"}, {"e": "Red de iluminación electrica", "a": "Postcosecha"}, {"e": "Red de potencia principal", "a": "Postcosecha"}, {"e": "Oficina de grano seco", "a": "Laboratorio de grano seco"}, {"e": "Laboratorio de pulpa", "a": "Laboratorio de pulpa"}, {"e": "Cilindro limpiador de cacao seco", "a": "Almacenamiento"}, {"e": "Clasificadora neumática de NIPS y FINOS", "a": "Almacenamiento"}, {"e": "Biodigestor", "a": "Servicios industriales"}, {"e": "Bomba de tanque de mezcla", "a": "Servicios industriales"}, {"e": "Bomba de tanque de recircularción", "a": "Servicios industriales"}, {"e": "Bascula", "a": "Pesaje"}, {"e": "Implemento giratorio del montacargas", "a": "Postcosecha"}, {"e": "Montacargas", "a": "Postcosecha"}], "tipos_trabajo": ["Ajuste a platinas tensoras y/o chumaceras tensoras", "Ajuste de dampers", "Ajuste de esparragos, reforzar malla, arreglar compuertas de piso o cambio de banda de lona", "Ajuste y/o cambio de helice o eje", "Arreglo de carretillas", "Calibración (Ensacadora)", "Cambio de accesorios en PVC", "Cambio de agujas, cambio de correas, ajuste de tornillos", "Cambio de banda y/o tensionar banda", "Cambio de bateria", "Cambio de bujes", "Cambio de ductos del horno", "Cambio de eje secadoras circulares", "Cambio de elastomero de acople araña", "Cambio de empaques, thermofilm, thermolon", "Cambio de filtros, aceite y/o refrigerante", "Cambio de madera, tornillos y/o ruedas", "Cambio de manguera flexible o ajuste", "Cambio de manguera hidraulico", "Cambio de motor, reductor o moto-reductor", "Cambio de piezas (Banda modular)", "Cambio de rodamientos y/o retenedores", "Cambio de termocupla", "Cambio de tornillos, tuercas, arandelas, wasas, remaches", "Cambio de ventilador avivador del horno", "Cambio motor eléctrico", "Cambio y/o ajuste de correa, piñones, poleas, cadenas, prisioneros, cuñas", "Corregir sentido de giro de plateas agitadoras", "Descargue de equipos en planta", "Energizar tablero eléctrico", "Engrase de chumaceras y rodamientos", "Fabricación, montaje o translado", "Grateado y pintado", "Inspeccion general nivel de aceite y refrigerante", "Instalacion y/o ajuste eléctrico", "Instalación de accesorios y tuberia", "Instalación y/o ajuste mecánico", "Limpieza", "Limpieza de aire acondicionado", "Limpieza de radiador planta CAT", "Pruebas nivel de llenado, sistema de bombeo y tuberia", "Reforzar estructura del equipo", "Reparación o desmontaje"], "proveedores": ["Soinka", "Bacao S.A.S", "Iluv", "Madeconfort", "Fimar", "Droma", "Toyota"], "intervencion": ["Correctivo mecánico", "Correctivo eléctrico", "Preventivo mecánico", "Preventivo eléctrico", "Mejora mecánica", "Mejora eléctrica"]};
+const KEY = "bacao:ots:v1";
+const ESTADOS = ["En planeacion","Programado","En ejecucion","Realizado","Reprogramado ","Cancelado"];
+const DISENOS = ["Sin informacion","diseñando","Lista material","Finalizado"];
+const PEDIDO  = ["Por pedir","En requisicion"];
+const LLEGADA = ["Sin inventario","en bodega","En PHC"];
+const INSUMO  = ["En alistamiento","Listo"];
+
+let state = { items: [], nextOT: 478, dec: ",", editId: null };
+
+/* ---------- utilidades ---------- */
+const $ = s => document.querySelector(s);
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2200); }
+function isoWeek(str){
+  if(!str) return "";
+  const [y,m,d] = str.split("-").map(Number);
+  const dt = new Date(Date.UTC(y,m-1,d));
+  const day = dt.getUTCDay() || 7;
+  dt.setUTCDate(dt.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(dt.getUTCFullYear(),0,1));
+  return Math.ceil(((dt - y0)/86400000 + 1)/7);
+}
+function ddmmyyyy(str){ if(!str) return ""; const [y,m,d]=str.split("-"); return `${d}/${m}/${y}`; }
+function hoy(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+
+/* ---------- almacenamiento ----------
+   Dentro de Claude usa window.storage; abierto como archivo suelto o desde una
+   dirección web, usa el almacenamiento del navegador del celular.            */
+const tieneStorage = typeof window.storage !== "undefined" && window.storage;
+
+function aplicar(txt){
+  if(!txt) return;
+  const d = JSON.parse(txt);
+  state.items = d.items || [];
+  state.nextOT = d.nextOT || 478;
+  state.dec = d.dec || ",";
+}
+async function cargar(){
+  if(tieneStorage){
+    try{
+      const r = await window.storage.get(KEY);
+      if(r && r.value){ aplicar(r.value); return; }
+    }catch(e){ /* primera vez: la clave todavía no existe */ }
+  }
+  try{ aplicar(localStorage.getItem(KEY)); }catch(e){}
+}
+async function guardarTodo(){
+  const txt = JSON.stringify({items:state.items, nextOT:state.nextOT, dec:state.dec});
+  let ok = false;
+  if(tieneStorage){
+    try{ await window.storage.set(KEY, txt); ok = true; }catch(e){}
+  }
+  try{ localStorage.setItem(KEY, txt); ok = true; }catch(e){}
+  if(!ok) toast("No se pudo guardar: exporta antes de cerrar");
+}
+
+/* ---------- selector de listas largas ---------- */
+function crearPicker(host, titulo, opciones, onPick, placeholder){
+  const btn = document.createElement("button");
+  btn.type="button"; btn.className="chosen empty";
+  btn.innerHTML = `<span>${placeholder}</span>`;
+  host.appendChild(btn);
+  host._set = v => {
+    btn.querySelector("span").textContent = v || placeholder;
+    btn.classList.toggle("empty", !v);
+    host._val = v || "";
+  };
+  host._val = "";
+  btn.addEventListener("click", ()=>{
+    const sheet = document.createElement("div");
+    sheet.className="sheet";
+    sheet.innerHTML = `<div class="panel">
+      <div class="top"><input type="text" placeholder="Buscar…" autocomplete="off"><button class="close" aria-label="Cerrar">×</button></div>
+      <div class="list"></div></div>`;
+    const inp = sheet.querySelector("input"), list = sheet.querySelector(".list");
+    const pintar = q => {
+      const t = q.trim().toLowerCase();
+      const f = opciones.filter(o => (o.label+" "+(o.sub||"")).toLowerCase().includes(t)).slice(0,120);
+      list.innerHTML = f.length ? "" : `<div class="empty"><p>Sin coincidencias</p></div>`;
+      f.forEach(o=>{
+        const b=document.createElement("button");
+        b.type="button"; b.className="opt";
+        b.innerHTML = `${o.label}${o.sub?`<small>${o.sub}</small>`:""}`;
+        b.onclick = ()=>{ host._set(o.label); onPick && onPick(o); cerrar(); };
+        list.appendChild(b);
+      });
+    };
+    const cerrar = ()=> sheet.remove();
+    sheet.addEventListener("click", e => { if(e.target===sheet) cerrar(); });
+    sheet.querySelector(".close").onclick = cerrar;
+    inp.addEventListener("input", ()=>pintar(inp.value));
+    pintar("");
+    document.body.appendChild(sheet);
+    setTimeout(()=>inp.focus(),50);
+  });
+  return host;
+}
+function llenarSelect(sel, arr, vacio){
+  sel.innerHTML = "";
+  const o0 = document.createElement("option"); o0.value=""; o0.textContent = vacio || "—";
+  sel.appendChild(o0);
+  arr.forEach(v=>{ const o=document.createElement("option"); o.value=v; o.textContent=v.trim(); sel.appendChild(o); });
+}
+
+/* ---------- formulario ---------- */
+const pEquipo = $("#p_equipo"), pTrabajo = $("#p_trabajo");
+
+function initForm(){
+  crearPicker(pEquipo, "Equipo", CAT.equipos.map(e=>({label:e.e, sub:e.a})),
+    o => { $("#f_area").textContent = o.sub || "—"; pEquipo._area = o.sub||""; }, "Buscar equipo…");
+  crearPicker(pTrabajo, "Tipo de trabajo", CAT.tipos_trabajo.map(t=>({label:t})), null, "Buscar tipo de trabajo…");
+
+  llenarSelect($("#f_interv"), CAT.intervencion);
+  llenarSelect($("#f_prov"), CAT.proveedores);
+  llenarSelect($("#f_estado"), ESTADOS);
+  llenarSelect($("#f_dis"), DISENOS);
+  llenarSelect($("#f_ped"), PEDIDO);
+  llenarSelect($("#f_lle"), LLEGADA);
+  llenarSelect($("#f_ins"), INSUMO);
+
+  $("#f_fecha").value = hoy();
+  $("#f_prog").addEventListener("change", e => $("#f_semprog").textContent = isoWeek(e.target.value) || "—");
+  $("#f_fin").addEventListener("change", e => $("#f_semfin").textContent = isoWeek(e.target.value) || "—");
+
+  document.querySelectorAll("[data-toggle]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const body = document.getElementById(b.dataset.toggle);
+      body.classList.toggle("hide");
+      b.classList.toggle("open", !body.classList.contains("hide"));
+    });
+  });
+}
+
+function limpiar(){
+  ["f_info","f_horom","f_tiempo","f_nmec","f_hmec","f_naux","f_haux","f_costo"].forEach(id=>$("#"+id).value="");
+  ["f_prog","f_fin"].forEach(id=>$("#"+id).value="");
+  ["f_interv","f_prov","f_estado","f_dis","f_ped","f_lle","f_ins"].forEach(id=>$("#"+id).value="");
+  pEquipo._set(""); pEquipo._area=""; pTrabajo._set("");
+  $("#f_area").textContent="—"; $("#f_semprog").textContent="—"; $("#f_semfin").textContent="—";
+  $("#f_fecha").value = hoy();
+  state.editId = null;
+  $("#btnGuardar").textContent = "Guardar orden";
+  document.querySelectorAll(".err").forEach(e=>e.classList.remove("err"));
+  window.scrollTo({top:0});
+}
+
+function leerForm(){
+  const v = id => $("#"+id).value.trim();
+  return {
+    id: state.editId || (Date.now()+"-"+Math.random().toString(36).slice(2,7)),
+    ot: state.editId ? (state.items.find(i=>i.id===state.editId)||{}).ot : state.nextOT,
+    fecha: v("f_fecha"),
+    equipo: pEquipo._val, area: pEquipo._area || "",
+    interv: v("f_interv"), prov: v("f_prov"), trabajo: pTrabajo._val, info: v("f_info"),
+    prog: v("f_prog"), estado: v("f_estado"),
+    horom: v("f_horom"), tiempo: v("f_tiempo"),
+    nmec: v("f_nmec"), hmec: v("f_hmec"), naux: v("f_naux"), haux: v("f_haux"),
+    fin: v("f_fin"),
+    dis: v("f_dis"), ped: v("f_ped"), lle: v("f_lle"), ins: v("f_ins"), costo: v("f_costo")
+  };
+}
+
+function validar(r){
+  const faltan = [];
+  const marcar = (id,ok)=>{ const el=$("#"+id); el.classList.toggle("err",!ok); };
+  marcar("f_fecha", !!r.fecha);   if(!r.fecha) faltan.push("fecha");
+  marcar("f_interv", !!r.interv); if(!r.interv) faltan.push("intervención");
+  marcar("f_prov", !!r.prov);     if(!r.prov) faltan.push("proveedor");
+  marcar("f_info", !!r.info);     if(!r.info) faltan.push("información");
+  pEquipo.querySelector(".chosen").classList.toggle("err", !r.equipo);
+  if(!r.equipo) faltan.push("equipo");
+  pTrabajo.querySelector(".chosen").classList.toggle("err", !r.trabajo);
+  if(!r.trabajo) faltan.push("tipo de trabajo");
+  return faltan;
+}
+
+async function guardar(){
+  const r = leerForm();
+  const faltan = validar(r);
+  if(faltan.length){ toast("Falta: " + faltan.join(", ")); return; }
+  if(state.editId){
+    state.items = state.items.map(i => i.id===state.editId ? r : i);
+    toast("Orden " + r.ot + " actualizada");
+  }else{
+    state.items.push(r);
+    state.nextOT = Number(state.nextOT) + 1;
+    toast("Orden " + r.ot + " guardada");
+  }
+  await guardarTodo();
+  limpiar();
+  pintarTodo();
+}
+
+function editar(id){
+  const r = state.items.find(i=>i.id===id); if(!r) return;
+  state.editId = id;
+  $("#f_fecha").value = r.fecha;
+  pEquipo._set(r.equipo); pEquipo._area = r.area; $("#f_area").textContent = r.area || "—";
+  pTrabajo._set(r.trabajo);
+  $("#f_interv").value=r.interv; $("#f_prov").value=r.prov; $("#f_info").value=r.info;
+  $("#f_prog").value=r.prog; $("#f_estado").value=r.estado;
+  $("#f_horom").value=r.horom; $("#f_tiempo").value=r.tiempo;
+  $("#f_nmec").value=r.nmec; $("#f_hmec").value=r.hmec; $("#f_naux").value=r.naux; $("#f_haux").value=r.haux;
+  $("#f_fin").value=r.fin;
+  $("#f_dis").value=r.dis; $("#f_ped").value=r.ped; $("#f_lle").value=r.lle; $("#f_ins").value=r.ins;
+  $("#f_costo").value=r.costo;
+  $("#f_semprog").textContent = isoWeek(r.prog) || "—";
+  $("#f_semfin").textContent = isoWeek(r.fin) || "—";
+  if(r.horom||r.tiempo||r.nmec||r.hmec||r.naux||r.haux||r.fin){ $("#b_ejec").classList.remove("hide"); }
+  if(r.dis||r.ped||r.lle||r.ins||r.costo){ $("#b_plan").classList.remove("hide"); }
+  $("#btnGuardar").textContent = "Actualizar orden";
+  verForm();
+  window.scrollTo({top:0});
+}
+
+async function borrar(id){
+  const r = state.items.find(i=>i.id===id);
+  if(!confirm("¿Borrar la orden " + (r?r.ot:"") + "?")) return;
+  state.items = state.items.filter(i=>i.id!==id);
+  await guardarTodo(); pintarTodo();
+}
+
+/* ---------- exportación ---------- */
+function num(v){ if(v==="" || v==null) return ""; return state.dec === "," ? String(v).replace(".", ",") : String(v); }
+function fila(r){
+  return [ r.ot, ddmmyyyy(r.fecha), r.equipo, r.area, r.interv, r.prov, r.trabajo, r.info,
+    ddmmyyyy(r.prog), isoWeek(r.prog), r.estado, num(r.horom), num(r.tiempo),
+    num(r.nmec), num(r.hmec), num(r.naux), num(r.haux),
+    ddmmyyyy(r.fin), isoWeek(r.fin), r.dis, r.ped, r.lle, r.ins, num(r.costo) ];
+}
+function tsv(){
+  return state.items.map(r => fila(r).map(c => String(c ?? "").replace(/[\t\n\r]+/g," ")).join("\t")).join("\n");
+}
+async function copiar(){
+  if(!state.items.length){ toast("No hay órdenes guardadas"); return; }
+  const txt = tsv();
+  try{
+    await navigator.clipboard.writeText(txt);
+    toast(state.items.length + " fila(s) copiadas");
+  }catch(e){
+    const ta=document.createElement("textarea");
+    ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); toast(state.items.length+" fila(s) copiadas"); }
+    catch(_){ toast("Copia manual: usa el botón CSV"); }
+    ta.remove();
+  }
+}
+function csv(){
+  if(!state.items.length){ toast("No hay órdenes guardadas"); return; }
+  const head = ["OT Nº","Fecha","Equipo","Area","Tipo de intervencion","Proveedor","Tipo de Trabajo",
+    "Información adicional","Fecha de programación","Semana de programación","Estado","Horometro [h]",
+    "Tiempo del mantenimiento [h]","# mecanicos","Horas de mtto mecanico","# auxiliares","Horas mtto axiliar",
+    "Fecha finalización","Semana finalización","Diseños","Pedido de materiales","Llegada materiales","Insumo","Costo de trabajo"];
+  const esc = c => `"${String(c ?? "").replace(/"/g,'""')}"`;
+  const txt = "\uFEFF" + [head, ...state.items.map(fila)].map(r=>r.map(esc).join(";")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([txt], {type:"text/csv;charset=utf-8"}));
+  a.download = "ordenes_" + hoy() + ".csv";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+
+/* ---------- pintado ---------- */
+function pintarTodo(){
+  $("#otnum").textContent = state.editId ? "editando" : state.nextOT;
+  $("#count").textContent = state.items.length;
+  $("#cfg_ot").value = state.nextOT;
+  $("#cfg_dec").value = state.dec;
+
+  const cont = $("#list");
+  if(!state.items.length){
+    cont.innerHTML = `<div class="empty"><p>Todavía no hay órdenes guardadas.</p>
+      <p>Las que registres quedan aquí hasta que las pases al Excel.</p></div>`;
+  }else{
+    cont.innerHTML = "";
+    state.items.slice().reverse().forEach(r=>{
+      const d = document.createElement("div");
+      d.className="item";
+      d.innerHTML = `<div class="l1"><span class="n">OT ${r.ot}</span>
+          <span class="est">${r.estado || "sin estado"}</span></div>
+        <div class="eq">${r.equipo}</div>
+        <div class="meta">${ddmmyyyy(r.fecha)} · ${r.interv} · ${r.trabajo}</div>
+        <div class="acts">
+          <button type="button" data-ed="${r.id}">Editar</button>
+          <button type="button" class="del" data-del="${r.id}">Borrar</button>
+        </div>`;
+      cont.appendChild(d);
+    });
+    cont.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>editar(b.dataset.ed));
+    cont.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>borrar(b.dataset.del));
+  }
+  const primera = state.items.length ? state.items[0].ot : state.nextOT;
+  $("#pasteNote").innerHTML = `Para pasarlas al archivo: abre la hoja <b>Trabajos</b>, ubícate en la
+    columna <b>B</b> de la primera fila vacía (la de la OT ${primera}, hoy <code>B482</code>) y pega.
+    Las 24 columnas van en el mismo orden de la hoja. Después borra las órdenes aquí para no repetirlas.`;
+}
+function verForm(){
+  $("#view-form").classList.remove("hide"); $("#view-list").classList.add("hide");
+  $("#bar-form").classList.remove("hide"); $("#bar-list").classList.add("hide");
+  $("#tab-form").setAttribute("aria-selected","true"); $("#tab-list").setAttribute("aria-selected","false");
+}
+function verLista(){
+  $("#view-form").classList.add("hide"); $("#view-list").classList.remove("hide");
+  $("#bar-form").classList.add("hide"); $("#bar-list").classList.remove("hide");
+  $("#tab-form").setAttribute("aria-selected","false"); $("#tab-list").setAttribute("aria-selected","true");
+  pintarTodo();
+}
+
+/* ---------- arranque ---------- */
+(async function(){
+  initForm();
+  await cargar();
+  pintarTodo();
+  $("#tab-form").onclick = verForm;
+  $("#tab-list").onclick = verLista;
+  $("#btnGuardar").onclick = guardar;
+  $("#btnLimpiar").onclick = limpiar;
+  $("#btnCopiar").onclick = copiar;
+  $("#btnCsv").onclick = csv;
+  $("#cfg_dec").onchange = async e => { state.dec = e.target.value; await guardarTodo(); };
+  $("#cfg_ot").onchange = async e => { state.nextOT = Number(e.target.value)||478; await guardarTodo(); pintarTodo(); };
+})();
+</script>

@@ -1,4 +1,5 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Órdenes">
@@ -142,8 +143,36 @@
   .toast.show{opacity:1}
   .setting{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--ink-2);margin:10px 0}
   .setting select,.setting input{width:auto;padding:7px 10px;font-size:13.5px}
+
+  /* Pantalla de acceso */
+  body.bloqueado>header,body.bloqueado>main,body.bloqueado>.savebar{display:none}
+  .puerta{
+    position:fixed;inset:0;z-index:80;background:var(--bg);display:none;
+    align-items:center;justify-content:center;padding:24px
+  }
+  body.bloqueado .puerta{display:flex}
+  .puerta .caja{width:100%;max-width:320px;text-align:center}
+  .puerta h2{font-size:19px;font-weight:600;margin:0 0 6px}
+  .puerta p{font-size:14px;color:var(--ink-2);margin:0 0 22px}
+  .puerta input{
+    width:100%;text-align:center;font-size:26px;letter-spacing:.4em;padding:14px 12px;
+    border:1px solid var(--line);border-radius:10px;background:#fff
+  }
+  .puerta input.mal{border-color:var(--alert);background:#FDF3F2}
+  .puerta .btn{width:100%;margin-top:12px}
+  .puerta .aviso{min-height:20px;margin-top:10px;font-size:13.5px;color:var(--alert)}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+
+<div class="puerta" id="puerta">
+  <div class="caja">
+    <h2>Órdenes de mantenimiento</h2>
+    <p>Escribe el código para entrar</p>
+    <input type="password" id="pin" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="······">
+    <button class="btn main" type="button" id="btnEntrar">Entrar</button>
+    <div class="aviso" id="avisoPin"></div>
+  </div>
+</div>
 
 <header>
   <div class="hd">
@@ -274,6 +303,9 @@
     <div class="setting">
       <span>Próximo número de OT</span>
       <input type="number" id="cfg_ot" step="1" style="width:110px">
+    </div>
+    <div class="setting">
+      <button class="btn ghost" type="button" id="btnBloquear" style="padding:8px 12px;font-size:13.5px">Bloquear en este teléfono</button>
     </div>
   </div>
 </main>
@@ -601,9 +633,51 @@ function verLista(){
   pintarTodo();
 }
 
+/* ---------- acceso ----------
+   El codigo no viaja en claro, pero esto no es seguridad de verdad: quien lea
+   el codigo fuente puede saltarselo. Sirve para que un extrano no entre a
+   capturar ordenes falsas.                                                   */
+const PIN_HASH = 3821502243;
+const KEY_ACC = "bacao:acceso:v1";
+function hash(s){ let x = 5381; for(const c of s) x = ((x*33) ^ c.charCodeAt(0)) >>> 0; return x; }
+
+function abrir(){
+  document.body.classList.remove("bloqueado");
+  try{ localStorage.setItem(KEY_ACC, "1"); }catch(e){}
+  if(tieneStorage){ window.storage.set(KEY_ACC, "1").catch(()=>{}); }
+}
+async function revisarAcceso(){
+  let ok = false;
+  try{ ok = localStorage.getItem(KEY_ACC) === "1"; }catch(e){}
+  if(!ok && tieneStorage){
+    try{ const r = await window.storage.get(KEY_ACC); ok = !!(r && r.value === "1"); }catch(e){}
+  }
+  if(ok){ document.body.classList.remove("bloqueado"); return; }
+  document.body.classList.add("bloqueado");
+  const inp = $("#pin"), aviso = $("#avisoPin");
+  const probar = () => {
+    if(hash(inp.value.trim()) === PIN_HASH){ abrir(); aviso.textContent = ""; }
+    else{
+      inp.classList.add("mal"); aviso.textContent = "Código incorrecto";
+      inp.value = ""; inp.focus();
+      setTimeout(()=>inp.classList.remove("mal"), 1200);
+    }
+  };
+  $("#btnEntrar").onclick = probar;
+  inp.addEventListener("keydown", e => { if(e.key === "Enter") probar(); });
+  setTimeout(()=>inp.focus(), 100);
+}
+async function bloquear(){
+  if(!confirm("¿Bloquear la aplicación en este teléfono? Las órdenes guardadas no se borran.")) return;
+  try{ localStorage.removeItem(KEY_ACC); }catch(e){}
+  if(tieneStorage){ try{ await window.storage.delete(KEY_ACC); }catch(e){} }
+  location.reload();
+}
+
 /* ---------- arranque ---------- */
 (async function(){
   initForm();
+  await revisarAcceso();
   await cargar();
   pintarTodo();
   $("#tab-form").onclick = verForm;
@@ -612,6 +686,7 @@ function verLista(){
   $("#btnLimpiar").onclick = limpiar;
   $("#btnCopiar").onclick = copiar;
   $("#btnCsv").onclick = csv;
+  $("#btnBloquear").onclick = bloquear;
   $("#cfg_dec").onchange = async e => { state.dec = e.target.value; await guardarTodo(); };
   $("#cfg_ot").onchange = async e => { state.nextOT = Number(e.target.value)||478; await guardarTodo(); pintarTodo(); };
 })();

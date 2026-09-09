@@ -124,6 +124,8 @@
   .item .l1{display:flex;gap:8px;align-items:baseline}
   .item .n{font-weight:600}
   .item .est{margin-left:auto;font-size:12px;color:var(--ink-2)}
+  .badge{font-size:11px;padding:2px 7px;border-radius:20px;background:#EDEFEB;color:var(--ink-2)}
+  .badge.ok{background:#E4F0E6;color:var(--ok)}
   .item .eq{font-size:14px;margin-top:2px}
   .item .meta{font-size:12.5px;color:var(--ink-2);margin-top:3px}
   .item .acts{display:flex;gap:8px;margin-top:10px}
@@ -304,8 +306,18 @@
       <span>Próximo número de OT</span>
       <input type="number" id="cfg_ot" step="1" style="width:110px">
     </div>
-    <div class="setting">
-      <button class="btn ghost" type="button" id="btnBloquear" style="padding:8px 12px;font-size:13.5px">Bloquear en este teléfono</button>
+    <div class="setting" style="display:block">
+      <span>Quién captura en este teléfono</span>
+      <input type="text" id="cfg_quien" placeholder="Nombre" style="width:100%;margin-top:6px">
+    </div>
+    <div class="setting" style="display:block">
+      <span>Dirección del servicio</span>
+      <input type="text" id="cfg_srv" placeholder="https://…workers.dev" style="width:100%;margin-top:6px">
+    </div>
+    <div class="setting" style="flex-wrap:wrap;gap:8px">
+      <button class="btn ghost" type="button" id="btnCsv" style="padding:8px 12px;font-size:13.5px">Descargar CSV</button>
+      <button class="btn ghost" type="button" id="btnLimpias" style="padding:8px 12px;font-size:13.5px">Borrar enviadas</button>
+      <button class="btn ghost" type="button" id="btnBloquear" style="padding:8px 12px;font-size:13.5px">Bloquear</button>
     </div>
   </div>
 </main>
@@ -316,8 +328,8 @@
     <button class="btn main" id="btnGuardar" type="button">Guardar orden</button>
   </div>
   <div class="inner hide" id="bar-list">
-    <button class="btn ghost" id="btnCsv" type="button">CSV</button>
-    <button class="btn main" id="btnCopiar" type="button">Copiar para Excel</button>
+    <button class="btn ghost" id="btnCopiar" type="button">Copiar</button>
+    <button class="btn main" id="btnEnviar" type="button">Enviar</button>
   </div>
 </div>
 
@@ -325,6 +337,13 @@
 
 <script>
 const CAT = {"equipos": [{"e": "Banda de rodillos corte mazorca 1", "a": "Recepción de mazorca"}, {"e": "Banda de rodillos corte mazorca 2", "a": "Recepción de mazorca"}, {"e": "Banda de separación de cacao fresco 1 Color verde", "a": "Recepción de mazorca"}, {"e": "Banda de separación de cacao fresco 2 Color blanco", "a": "Recepción de mazorca"}, {"e": "Trasportador trituradora de cascara flexible", "a": "Recepción de mazorca"}, {"e": "Tolva y sinfín inclinado alimentador a tolva 1", "a": "Recepción de fruto fresco"}, {"e": "Banda de mazorca INALRED", "a": "Recepción de mazorca"}, {"e": "Quebradora de mazorca pinhalense", "a": "Recepción de mazorca"}, {"e": "Banda de cascara de mazorca INALRED", "a": "Recepcion de mazorca"}, {"e": "Sinfín de fruto fresco con inclinacion automatica", "a": "Recepción de fruto fresco"}, {"e": "Tolva y sinfín a centriflux 1", "a": "Recepción de fruto fresco"}, {"e": "Tolva y sinfín a centriflux 2", "a": "Recepción de fruto fresco"}, {"e": "Bomba de mucilago", "a": "Recepción de fruto fresco"}, {"e": "Bomba de CIP y línea de tubería", "a": "Recepción de fruto fresco"}, {"e": "Centriflux 1", "a": "Recepción de fruto fresco"}, {"e": "Centriflux 2", "a": "Recepción de fruto fresco"}, {"e": "Tolva de mucilago", "a": "Recepción de fruto fresco"}, {"e": "Batería de cajones anaeróbicos 1", "a": "fermentación anaeróbica"}, {"e": "Batería de cajones anaeróbicos 2", "a": "fermentación anaeróbica"}, {"e": "Cajones con rodachines", "a": "fermentación aérobica"}, {"e": "Transpaleta electrohidráulica o manual", "a": "Presecado mecánico"}, {"e": "Volteadora de cajones 1", "a": "Presecado mecánico"}, {"e": "Volteadora de cajones 2", "a": "Presecado mecánico"}, {"e": "Presecadora 1", "a": "Presecado mecánico"}, {"e": "Presecadora 2", "a": "Presecado mecánico"}, {"e": "Presecadora 3", "a": "Presecado mecánico"}, {"e": "Presecadora 4", "a": "Presecado mecánico"}, {"e": "Banda modular a presecadoras 1 y 2", "a": "Presecado mecánico"}, {"e": "Transportador sinfín a presecadoras 3 y 4", "a": "Presecado mecánico"}, {"e": "Banda salida de presecadoras 1-2-3-4", "a": "Presecado mecánico"}, {"e": "Presecadora cuadrada pequeña", "a": "Presecado mecánico"}, {"e": "Banda modular de cacao preseco a tolva", "a": "Presecado mecánico"}, {"e": "Diverter y tolva de cacao preseco", "a": "Secado mecánico"}, {"e": "Diverter y banda modular a secadoras línea 1 (Secadores 1 y 2)", "a": "secado mecánico"}, {"e": "Diverter y banda modular a secadoras línea 2 (Secadores 3 y 4)", "a": "Secado mecánico"}, {"e": "Secador multinivel 1", "a": "Secado mecánico"}, {"e": "Secador multinivel 2", "a": "Secado mecánico"}, {"e": "Secador multinivel 3", "a": "Secado mecánico"}, {"e": "Secador multinivel 4", "a": "Secado mecánico"}, {"e": "Banda modular de cacao seco línea 1 (Secadores 1 y 2)", "a": "Secado mecánico"}, {"e": "Banda modular de cacao seco línea 2 (Secadores 3 y 4)", "a": "Secado mecánico"}, {"e": "Banda trasversal de cacao seco línea 3", "a": "Bodega almacenamiento"}, {"e": "Prelimpiadora de cacao seco", "a": "Bodega almacenamiento"}, {"e": "Banda verde 1 de grano seco a tolva", "a": "Bodega almacenamiento"}, {"e": "Banda verde 2 de grano seco a tolva", "a": "Bodega almacenamiento"}, {"e": "Tolva de cacao seco", "a": "Bodega almacenamiento"}, {"e": "Ensacadora Imaquin", "a": "Bodega almacenamiento"}, {"e": "Levantador vertical de sacos", "a": "Bodega almacenamiento"}, {"e": "Banda horizontal de sacos (Recibo de ensacadora)", "a": "Bodega almacenamiento"}, {"e": "Banda de cargue con inclinación automática.", "a": "Bodega almacenamiento"}, {"e": "Banda de cargue con inclinación manual.", "a": "Bodega almacenamiento"}, {"e": "Cosedora industrial de sacos 1", "a": "Bodega almacenamiento"}, {"e": "Cosedora industrial de sacos 2", "a": "Bodega almacenamiento"}, {"e": "Marmita de 250 litros", "a": "Laboratorio de pulpa"}, {"e": "Filtro mecánico", "a": "Laboratorio de pulpa"}, {"e": "Hydroflow", "a": "Laboratorio de pulpa"}, {"e": "Lavador de mazorcas", "a": "Laboratorio de pulpa"}, {"e": "Compresor de tornillo neumático", "a": "Servicios industriales"}, {"e": "Generador CAT C7.1", "a": "Servicios industriales"}, {"e": "Sistema piloto Biodigestores", "a": "Servicios industriales"}, {"e": "Bioreactor prototipo de fermentación de 2 ton", "a": "Fermentación anaeróbica"}, {"e": "Etapa 1 (Recepción)", "a": "Recepción de fruto fresco"}, {"e": "Etapa 2 (Presecado mecánico)", "a": "Presecado mecánico"}, {"e": "Etapa 3 (Secado mecánico)", "a": "Secado mecánico"}, {"e": "Etapa 4 (Bodega almacenamiento)", "a": "Bodega almacenamiento"}, {"e": "Infraestructura", "a": "Postcosecha"}, {"e": "Red de iluminación electrica", "a": "Postcosecha"}, {"e": "Red de potencia principal", "a": "Postcosecha"}, {"e": "Oficina de grano seco", "a": "Laboratorio de grano seco"}, {"e": "Laboratorio de pulpa", "a": "Laboratorio de pulpa"}, {"e": "Cilindro limpiador de cacao seco", "a": "Almacenamiento"}, {"e": "Clasificadora neumática de NIPS y FINOS", "a": "Almacenamiento"}, {"e": "Biodigestor", "a": "Servicios industriales"}, {"e": "Bomba de tanque de mezcla", "a": "Servicios industriales"}, {"e": "Bomba de tanque de recircularción", "a": "Servicios industriales"}, {"e": "Bascula", "a": "Pesaje"}, {"e": "Implemento giratorio del montacargas", "a": "Postcosecha"}, {"e": "Montacargas", "a": "Postcosecha"}], "tipos_trabajo": ["Ajuste a platinas tensoras y/o chumaceras tensoras", "Ajuste de dampers", "Ajuste de esparragos, reforzar malla, arreglar compuertas de piso o cambio de banda de lona", "Ajuste y/o cambio de helice o eje", "Arreglo de carretillas", "Calibración (Ensacadora)", "Cambio de accesorios en PVC", "Cambio de agujas, cambio de correas, ajuste de tornillos", "Cambio de banda y/o tensionar banda", "Cambio de bateria", "Cambio de bujes", "Cambio de ductos del horno", "Cambio de eje secadoras circulares", "Cambio de elastomero de acople araña", "Cambio de empaques, thermofilm, thermolon", "Cambio de filtros, aceite y/o refrigerante", "Cambio de madera, tornillos y/o ruedas", "Cambio de manguera flexible o ajuste", "Cambio de manguera hidraulico", "Cambio de motor, reductor o moto-reductor", "Cambio de piezas (Banda modular)", "Cambio de rodamientos y/o retenedores", "Cambio de termocupla", "Cambio de tornillos, tuercas, arandelas, wasas, remaches", "Cambio de ventilador avivador del horno", "Cambio motor eléctrico", "Cambio y/o ajuste de correa, piñones, poleas, cadenas, prisioneros, cuñas", "Corregir sentido de giro de plateas agitadoras", "Descargue de equipos en planta", "Energizar tablero eléctrico", "Engrase de chumaceras y rodamientos", "Fabricación, montaje o translado", "Grateado y pintado", "Inspeccion general nivel de aceite y refrigerante", "Instalacion y/o ajuste eléctrico", "Instalación de accesorios y tuberia", "Instalación y/o ajuste mecánico", "Limpieza", "Limpieza de aire acondicionado", "Limpieza de radiador planta CAT", "Pruebas nivel de llenado, sistema de bombeo y tuberia", "Reforzar estructura del equipo", "Reparación o desmontaje"], "proveedores": ["Soinka", "Bacao S.A.S", "Iluv", "Madeconfort", "Fimar", "Droma", "Toyota"], "intervencion": ["Correctivo mecánico", "Correctivo eléctrico", "Preventivo mecánico", "Preventivo eléctrico", "Mejora mecánica", "Mejora eléctrica"]};
+
+/* ---------- conexión con el servicio ----------
+   Pega aquí la dirección de tu Worker, sin barra final. Ejemplo:
+   const SERVIDOR = "https://ordenes-bacao.tuusuario.workers.dev";
+   Si la dejas vacía, la app funciona igual pero solo con copiar y pegar.  */
+const SERVIDOR = "";
+const CLAVE_SERVIDOR = "2MWpGyZcdUQqMTSgiHXAo5gx";
 const KEY = "bacao:ots:v1";
 const ESTADOS = ["En planeacion","Programado","En ejecucion","Realizado","Reprogramado ","Cancelado"];
 const DISENOS = ["Sin informacion","diseñando","Lista material","Finalizado"];
@@ -332,7 +351,7 @@ const PEDIDO  = ["Por pedir","En requisicion"];
 const LLEGADA = ["Sin inventario","en bodega","En PHC"];
 const INSUMO  = ["En alistamiento","Listo"];
 
-let state = { items: [], nextOT: 478, dec: ",", editId: null };
+let state = { items: [], nextOT: 478, dec: ",", editId: null, servidor: "", quien: "" };
 
 /* ---------- utilidades ---------- */
 const $ = s => document.querySelector(s);
@@ -371,7 +390,8 @@ async function cargar(){
   try{ aplicar(localStorage.getItem(KEY)); }catch(e){}
 }
 async function guardarTodo(){
-  const txt = JSON.stringify({items:state.items, nextOT:state.nextOT, dec:state.dec});
+  const txt = JSON.stringify({items:state.items, nextOT:state.nextOT, dec:state.dec,
+                              servidor:state.servidor, quien:state.quien});
   let ok = false;
   if(tieneStorage){
     try{ await window.storage.set(KEY, txt); ok = true; }catch(e){}
@@ -587,11 +607,63 @@ function csv(){
   setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
 }
 
+/* ---------- envío al servicio ---------- */
+function urlServicio(){ return (state.servidor || SERVIDOR).replace(/\/+$/,""); }
+function hayServidor(){ return !!urlServicio(); }
+
+async function enviarUna(r){
+  const cuerpo = {
+    fecha: ddmmyyyy(r.fecha), equipo: r.equipo, area: r.area, interv: r.interv,
+    prov: r.prov, trabajo: r.trabajo, info: r.info,
+    prog: ddmmyyyy(r.prog), semprog: isoWeek(r.prog), estado: r.estado,
+    horom: r.horom, tiempo: r.tiempo, nmec: r.nmec, hmec: r.hmec,
+    naux: r.naux, haux: r.haux, fin: ddmmyyyy(r.fin), semfin: isoWeek(r.fin),
+    dis: r.dis, ped: r.ped, lle: r.lle, ins: r.ins, costo: r.costo,
+    capturado_por: state.quien
+  };
+  const resp = await fetch(urlServicio() + "/ot?k=" + encodeURIComponent(CLAVE_SERVIDOR), {
+    method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(cuerpo)
+  });
+  const datos = await resp.json().catch(()=>({}));
+  if(!resp.ok || !datos.ok) throw new Error(datos.error || ("error " + resp.status));
+  return datos.ot;
+}
+
+async function enviarPendientes(){
+  if(!hayServidor()){ toast("Falta configurar la dirección del servicio"); verLista(); return; }
+  const pend = state.items.filter(i => !i.enviada);
+  if(!pend.length){ toast("No hay órdenes pendientes por enviar"); return; }
+  const btn = $("#btnEnviar"); btn.disabled = true; btn.textContent = "Enviando…";
+  let ok = 0, fallo = 0, ultimoError = "";
+  for(const r of pend){
+    try{
+      r.ot = await enviarUna(r);
+      r.enviada = true;
+      ok++;
+    }catch(e){ fallo++; ultimoError = e.message || "sin conexión"; }
+  }
+  await guardarTodo();
+  btn.disabled = false; btn.textContent = "Enviar";
+  pintarTodo();
+  toast(fallo ? ok + " enviadas, " + fallo + " sin enviar (" + ultimoError + ")"
+              : ok + " orden(es) enviadas");
+}
+
+async function borrarEnviadas(){
+  const n = state.items.filter(i=>i.enviada).length;
+  if(!n){ toast("No hay órdenes enviadas"); return; }
+  if(!confirm("¿Quitar de este teléfono las " + n + " órdenes ya enviadas? Siguen guardadas en el servicio.")) return;
+  state.items = state.items.filter(i=>!i.enviada);
+  await guardarTodo(); pintarTodo();
+}
+
 /* ---------- pintado ---------- */
 function pintarTodo(){
-  $("#otnum").textContent = state.editId ? "editando" : state.nextOT;
+  $("#otnum").textContent = state.editId ? "editando" : (hayServidor() ? "automática" : state.nextOT);
   $("#count").textContent = state.items.length;
   $("#cfg_ot").value = state.nextOT;
+  $("#cfg_quien").value = state.quien;
+  $("#cfg_srv").value = state.servidor || SERVIDOR;
   $("#cfg_dec").value = state.dec;
 
   const cont = $("#list");
@@ -603,12 +675,15 @@ function pintarTodo(){
     state.items.slice().reverse().forEach(r=>{
       const d = document.createElement("div");
       d.className="item";
-      d.innerHTML = `<div class="l1"><span class="n">OT ${r.ot}</span>
-          <span class="est">${r.estado || "sin estado"}</span></div>
+      const marca = r.enviada
+        ? `<span class="badge ok">Enviada</span>`
+        : (hayServidor() ? `<span class="badge">Pendiente</span>` : "");
+      d.innerHTML = `<div class="l1"><span class="n">OT ${r.enviada || !hayServidor() ? r.ot : "por asignar"}</span>
+          ${marca}<span class="est">${r.estado || "sin estado"}</span></div>
         <div class="eq">${r.equipo}</div>
         <div class="meta">${ddmmyyyy(r.fecha)} · ${r.interv} · ${r.trabajo}</div>
         <div class="acts">
-          <button type="button" data-ed="${r.id}">Editar</button>
+          <button type="button" data-ed="${r.id}"${r.enviada?" disabled":""}>Editar</button>
           <button type="button" class="del" data-del="${r.id}">Borrar</button>
         </div>`;
       cont.appendChild(d);
@@ -687,6 +762,10 @@ async function bloquear(){
   $("#btnCopiar").onclick = copiar;
   $("#btnCsv").onclick = csv;
   $("#btnBloquear").onclick = bloquear;
+  $("#btnEnviar").onclick = enviarPendientes;
+  $("#btnLimpias").onclick = borrarEnviadas;
+  $("#cfg_quien").onchange = async e => { state.quien = e.target.value.trim(); await guardarTodo(); };
+  $("#cfg_srv").onchange = async e => { state.servidor = e.target.value.trim(); await guardarTodo(); pintarTodo(); };
   $("#cfg_dec").onchange = async e => { state.dec = e.target.value; await guardarTodo(); };
   $("#cfg_ot").onchange = async e => { state.nextOT = Number(e.target.value)||478; await guardarTodo(); pintarTodo(); };
 })();

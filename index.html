@@ -758,6 +758,7 @@ function editarRemota(ot){
   $("#b_ejec").classList.remove("hide");
   $("#s_abierta").classList.add("hide");
   $("#btnGuardar").textContent = "Guardar OT " + ot;
+  pintarTodo();
   verForm();
   window.scrollTo({top:0});
 }
@@ -913,6 +914,16 @@ function pintarTodo(){
   cont.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => editar(b.dataset.ed));
   cont.querySelectorAll("[data-del]").forEach(b => b.onclick = () => borrar(b.dataset.del));
   cont.querySelectorAll("[data-reabrir]").forEach(b => b.onclick = () => reabrir(Number(b.dataset.reabrir)));
+}
+function mostrar(cual){
+  const vistas = {form:"view-form", list:"view-list", ab:"view-abiertas"};
+  const barras = {form:"bar-form", list:"bar-list", ab:"bar-ab"};
+  const pest   = {form:"tab-form", list:"tab-list", ab:"tab-abiertas"};
+  for(const k in vistas){
+    $("#"+vistas[k]).classList.toggle("hide", k !== cual);
+    $("#"+barras[k]).classList.toggle("hide", k !== cual);
+    $("#"+pest[k]).setAttribute("aria-selected", String(k === cual));
+  }
 }
 function verForm(){ mostrar("form"); }
 function verLista(){ mostrar("list"); pintarTodo(); cargarListas(); }

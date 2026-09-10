@@ -183,7 +183,8 @@
   </div>
   <div class="tabs" role="tablist">
     <button class="tab" id="tab-form" role="tab" aria-selected="true">Nueva orden</button>
-    <button class="tab" id="tab-list" role="tab" aria-selected="false">Guardadas<span class="pill" id="count">0</span></button>
+    <button class="tab" id="tab-list" role="tab" aria-selected="false">Por enviar<span class="pill" id="count">0</span></button>
+    <button class="tab" id="tab-abiertas" role="tab" aria-selected="false">En curso<span class="pill" id="countAb">0</span></button>
   </div>
 </header>
 
@@ -272,6 +273,15 @@
       </div>
     </section>
 
+    <section id="s_abierta">
+      <div class="body" style="padding:14px">
+        <label style="display:flex;gap:10px;align-items:flex-start;margin:0;cursor:pointer">
+          <input type="checkbox" id="f_abierta" style="width:20px;height:20px;margin-top:1px;flex:0 0 auto">
+          <span style="font-size:14px;color:var(--ink)">Dejar la orden abierta<span style="display:block;font-size:12.5px;color:var(--ink-2)">El trabajo sigue en curso. Podrás completarla desde En curso y marcarla lista cuando termine.</span></span>
+        </label>
+      </div>
+    </section>
+
     <section id="s_plan">
       <button class="shd click" type="button" data-toggle="b_plan">
         <h2>Planeación y materiales</h2><span class="cols">U–Y</span><span class="chev">▾</span>
@@ -289,6 +299,11 @@
         <input type="number" inputmode="decimal" step="1" id="f_costo">
       </div>
     </section>
+  </div>
+
+  <!-- ---------- EN CURSO (del servicio) ---------- -->
+  <div id="view-abiertas" class="hide">
+    <div id="listaAb"><div class="empty"><p>Cargando…</p></div></div>
   </div>
 
   <!-- ---------- GUARDADAS ---------- -->
@@ -327,6 +342,10 @@
     <button class="btn ghost" id="btnLimpiar" type="button">Limpiar</button>
     <button class="btn main" id="btnGuardar" type="button">Guardar orden</button>
   </div>
+  <div class="inner hide" id="bar-ab">
+    <button class="btn ghost" id="btnRecargar" type="button">Actualizar</button>
+    <span style="flex:1;font-size:13px;color:var(--ink-2)" id="avisoAb"></span>
+  </div>
   <div class="inner hide" id="bar-list">
     <button class="btn ghost" id="btnCopiar" type="button">Copiar</button>
     <button class="btn main" id="btnEnviar" type="button">Enviar</button>
@@ -342,7 +361,7 @@ const CAT = {"equipos": [{"e": "Banda de rodillos corte mazorca 1", "a": "Recepc
    Pega aquí la dirección de tu Worker, sin barra final. Ejemplo:
    const SERVIDOR = "https://ordenes-bacao.tuusuario.workers.dev";
    Si la dejas vacía, la app funciona igual pero solo con copiar y pegar.  */
-const SERVIDOR = "https://ordenes-bacao.mgereda.workers.dev";
+const SERVIDOR = "";
 const CLAVE_SERVIDOR = "2MWpGyZcdUQqMTSgiHXAo5gx";
 const KEY = "bacao:ots:v1";
 const ESTADOS = ["En planeacion","Programado","En ejecucion","Realizado","Reprogramado ","Cancelado"];
@@ -351,7 +370,8 @@ const PEDIDO  = ["Por pedir","En requisicion"];
 const LLEGADA = ["Sin inventario","en bodega","En PHC"];
 const INSUMO  = ["En alistamiento","Listo"];
 
-let state = { items: [], nextOT: 478, dec: ",", editId: null, servidor: "", quien: "" };
+let state = { items: [], nextOT: 478, dec: ",", editId: null, editRemota: null,
+              servidor: "", quien: "", abiertas: [] };
 
 /* ---------- utilidades ---------- */
 const $ = s => document.querySelector(s);
@@ -485,6 +505,9 @@ function limpiar(){
   $("#f_area").textContent="—"; $("#f_semprog").textContent="—"; $("#f_semfin").textContent="—";
   $("#f_fecha").value = hoy();
   state.editId = null;
+  state.editRemota = null;
+  $("#f_abierta").checked = false;
+  $("#s_abierta").classList.remove("hide");
   $("#btnGuardar").textContent = "Guardar orden";
   document.querySelectorAll(".err").forEach(e=>e.classList.remove("err"));
   window.scrollTo({top:0});
@@ -502,7 +525,8 @@ function leerForm(){
     horom: v("f_horom"), tiempo: v("f_tiempo"),
     nmec: v("f_nmec"), hmec: v("f_hmec"), naux: v("f_naux"), haux: v("f_haux"),
     fin: v("f_fin"),
-    dis: v("f_dis"), ped: v("f_ped"), lle: v("f_lle"), ins: v("f_ins"), costo: v("f_costo")
+    dis: v("f_dis"), ped: v("f_ped"), lle: v("f_lle"), ins: v("f_ins"), costo: v("f_costo"),
+    abierta: $("#f_abierta").checked
   };
 }
 
@@ -521,6 +545,7 @@ function validar(r){
 }
 
 async function guardar(){
+  if(state.editRemota) return guardarRemota();
   const r = leerForm();
   const faltan = validar(r);
   if(faltan.length){ toast("Falta: " + faltan.join(", ")); return; }
@@ -607,12 +632,14 @@ function csv(){
   setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
 }
 
-/* ---------- envío al servicio ---------- */
-function urlServicio(){ return (state.servidor || SERVIDOR).replace(/\/+$/,""); }
-function hayServidor(){ return !!urlServicio(); }
-
-async function enviarUna(r){
-  const cuerpo = {
+/* ---------- órdenes en curso, guardadas en el servicio ---------- */
+function fechaISO(s){
+  if(!s) return "";
+  const p = String(s).split("/");
+  return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : "";
+}
+function cuerpoServidor(r){
+  return {
     fecha: ddmmyyyy(r.fecha), equipo: r.equipo, area: r.area, interv: r.interv,
     prov: r.prov, trabajo: r.trabajo, info: r.info,
     prog: ddmmyyyy(r.prog), semprog: isoWeek(r.prog), estado: r.estado,
@@ -621,6 +648,119 @@ async function enviarUna(r){
     dis: r.dis, ped: r.ped, lle: r.lle, ins: r.ins, costo: r.costo,
     capturado_por: state.quien
   };
+}
+
+async function cargarAbiertas(){
+  if(!hayServidor()){
+    $("#listaAb").innerHTML = `<div class="empty"><p>Falta configurar la dirección del servicio.</p></div>`;
+    return;
+  }
+  $("#avisoAb").textContent = "Consultando…";
+  try{
+    const r = await fetch(urlServicio() + "/registros?k=" + encodeURIComponent(CLAVE_SERVIDOR) + "&estado=abiertas");
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error || "error " + r.status);
+    state.abiertas = d.sort((a,b)=>a.ot-b.ot);
+    $("#avisoAb").textContent = "";
+  }catch(e){
+    $("#avisoAb").textContent = "Sin conexión";
+    $("#listaAb").innerHTML = `<div class="empty"><p>No se pudo consultar el servicio.</p><p>${e.message}</p></div>`;
+    return;
+  }
+  pintarAbiertas();
+}
+
+function pintarAbiertas(){
+  const c = $("#listaAb");
+  $("#countAb").textContent = state.abiertas.length;
+  if(!state.abiertas.length){
+    c.innerHTML = `<div class="empty"><p>No hay órdenes en curso.</p>
+      <p>Las que dejes abiertas al guardar aparecen aquí para completarlas.</p></div>`;
+    return;
+  }
+  c.innerHTML = "";
+  state.abiertas.forEach(r=>{
+    const d = document.createElement("div");
+    d.className = "item";
+    d.innerHTML = `<div class="l1"><span class="n">OT ${r.ot}</span>
+        <span class="badge">En curso</span><span class="est">${r.estado || "sin estado"}</span></div>
+      <div class="eq">${r.equipo || ""}</div>
+      <div class="meta">${r.fecha || ""} · ${r.interv || ""} · ${r.trabajo || ""}</div>
+      ${r.info ? `<div class="meta">${r.info}</div>` : ""}
+      <div class="acts">
+        <button type="button" data-edr="${r.ot}">Completar</button>
+        <button type="button" data-lista="${r.ot}" style="border-color:#BFD6C4;color:var(--ok)">Marcar lista</button>
+      </div>`;
+    c.appendChild(d);
+  });
+  c.querySelectorAll("[data-edr]").forEach(b => b.onclick = () => editarRemota(Number(b.dataset.edr)));
+  c.querySelectorAll("[data-lista]").forEach(b => b.onclick = () => marcarLista(Number(b.dataset.lista)));
+}
+
+function editarRemota(ot){
+  const r = state.abiertas.find(x => x.ot === ot);
+  if(!r) return;
+  limpiar();
+  state.editRemota = ot;
+  $("#f_fecha").value = fechaISO(r.fecha);
+  pEquipo._set(r.equipo || ""); pEquipo._area = r.area || "";
+  $("#f_area").textContent = r.area || "—";
+  pTrabajo._set(r.trabajo || "");
+  $("#f_interv").value = r.interv || ""; $("#f_prov").value = r.prov || "";
+  $("#f_info").value = r.info || "";
+  $("#f_prog").value = fechaISO(r.prog); $("#f_estado").value = r.estado || "";
+  $("#f_horom").value = r.horom || ""; $("#f_tiempo").value = r.tiempo || "";
+  $("#f_nmec").value = r.nmec || ""; $("#f_hmec").value = r.hmec || "";
+  $("#f_naux").value = r.naux || ""; $("#f_haux").value = r.haux || "";
+  $("#f_fin").value = fechaISO(r.fin);
+  $("#f_dis").value = r.dis || ""; $("#f_ped").value = r.ped || "";
+  $("#f_lle").value = r.lle || ""; $("#f_ins").value = r.ins || "";
+  $("#f_costo").value = r.costo || "";
+  $("#f_semprog").textContent = isoWeek(fechaISO(r.prog)) || "—";
+  $("#f_semfin").textContent = isoWeek(fechaISO(r.fin)) || "—";
+  $("#b_ejec").classList.remove("hide");
+  $("#s_abierta").classList.add("hide");
+  $("#btnGuardar").textContent = "Guardar OT " + ot;
+  verForm();
+  window.scrollTo({top:0});
+}
+
+async function guardarRemota(){
+  const r = leerForm();
+  const faltan = validar(r);
+  if(faltan.length){ toast("Falta: " + faltan.join(", ")); return; }
+  const btn = $("#btnGuardar"); btn.disabled = true; btn.textContent = "Guardando…";
+  try{
+    const resp = await fetch(urlServicio() + "/editar?k=" + encodeURIComponent(CLAVE_SERVIDOR) + "&ot=" + state.editRemota,
+      { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(cuerpoServidor(r)) });
+    const d = await resp.json().catch(()=>({}));
+    if(!resp.ok || !d.ok) throw new Error(d.error || "error " + resp.status);
+    toast("OT " + state.editRemota + " actualizada");
+    limpiar();
+    await cargarAbiertas();
+    verAbiertas();
+  }catch(e){ toast("No se pudo guardar: " + e.message); }
+  btn.disabled = false;
+}
+
+async function marcarLista(ot){
+  if(!confirm("¿Dar por terminada la OT " + ot + "? Pasa a la lista para consolidar en Excel y ya no se podrá completar aquí.")) return;
+  try{
+    const resp = await fetch(urlServicio() + "/marcar-lista?k=" + encodeURIComponent(CLAVE_SERVIDOR) + "&ot=" + ot + "&confirmar=si");
+    const d = await resp.json().catch(()=>({}));
+    if(!resp.ok || !d.ok) throw new Error(d.error || "error " + resp.status);
+    toast("OT " + ot + " marcada como lista");
+    await cargarAbiertas();
+  }catch(e){ toast("No se pudo: " + e.message); }
+}
+
+/* ---------- envío al servicio ---------- */
+function urlServicio(){ return (state.servidor || SERVIDOR).replace(/\/+$/,""); }
+function hayServidor(){ return !!urlServicio(); }
+
+async function enviarUna(r){
+  const cuerpo = cuerpoServidor(r);
+  cuerpo.lista = !r.abierta;
   const resp = await fetch(urlServicio() + "/ot?k=" + encodeURIComponent(CLAVE_SERVIDOR), {
     method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(cuerpo)
   });
@@ -696,17 +836,19 @@ function pintarTodo(){
     columna <b>B</b> de la primera fila vacía (la de la OT ${primera}, hoy <code>B482</code>) y pega.
     Las 24 columnas van en el mismo orden de la hoja. Después borra las órdenes aquí para no repetirlas.`;
 }
-function verForm(){
-  $("#view-form").classList.remove("hide"); $("#view-list").classList.add("hide");
-  $("#bar-form").classList.remove("hide"); $("#bar-list").classList.add("hide");
-  $("#tab-form").setAttribute("aria-selected","true"); $("#tab-list").setAttribute("aria-selected","false");
+function mostrar(cual){
+  const vistas = {form:"view-form", list:"view-list", ab:"view-abiertas"};
+  const barras = {form:"bar-form", list:"bar-list", ab:"bar-ab"};
+  const pest   = {form:"tab-form", list:"tab-list", ab:"tab-abiertas"};
+  for(const k in vistas){
+    $("#"+vistas[k]).classList.toggle("hide", k !== cual);
+    $("#"+barras[k]).classList.toggle("hide", k !== cual);
+    $("#"+pest[k]).setAttribute("aria-selected", String(k === cual));
+  }
 }
-function verLista(){
-  $("#view-form").classList.add("hide"); $("#view-list").classList.remove("hide");
-  $("#bar-form").classList.add("hide"); $("#bar-list").classList.remove("hide");
-  $("#tab-form").setAttribute("aria-selected","false"); $("#tab-list").setAttribute("aria-selected","true");
-  pintarTodo();
-}
+function verForm(){ mostrar("form"); }
+function verLista(){ mostrar("list"); pintarTodo(); }
+function verAbiertas(){ mostrar("ab"); pintarAbiertas(); cargarAbiertas(); }
 
 /* ---------- acceso ----------
    El codigo no viaja en claro, pero esto no es seguridad de verdad: quien lea
@@ -755,8 +897,11 @@ async function bloquear(){
   await revisarAcceso();
   await cargar();
   pintarTodo();
+  if(hayServidor()) cargarAbiertas();
   $("#tab-form").onclick = verForm;
   $("#tab-list").onclick = verLista;
+  $("#tab-abiertas").onclick = verAbiertas;
+  $("#btnRecargar").onclick = cargarAbiertas;
   $("#btnGuardar").onclick = guardar;
   $("#btnLimpiar").onclick = limpiar;
   $("#btnCopiar").onclick = copiar;

@@ -92,6 +92,7 @@
   </div>
   <div class="tabs" role="tablist">
     <button class="tab" id="tabPend" role="tab" aria-selected="true">Por consolidar</button>
+    <button class="tab" id="tabAb" role="tab" aria-selected="false">En curso</button>
     <button class="tab" id="tabPap" role="tab" aria-selected="false">Papelera</button>
     <button class="tab" id="tabConf" role="tab" aria-selected="false">Ajustes</button>
   </div>
@@ -116,7 +117,7 @@
 /* ---------- conexión ----------
    Pega aquí la dirección del Worker, sin barra final, y este panel queda
    configurado para cualquiera que lo abra.                                  */
-const SERVIDOR = "https://ordenes-bacao.mgereda.workers.dev";
+const SERVIDOR = "";
 const CLAVE_SERVIDOR = "2MWpGyZcdUQqMTSgiHXAo5gx";
 
 const PIN_HASH = 3821502243;
@@ -167,7 +168,7 @@ async function pedir(ruta, extra=""){
 async function refrescarCuentas(){
   try{
     const s = await pedir("/salud");
-    $("#cuentas").innerHTML = `<b>${s.pendientes}</b> por consolidar · ${s.consolidadas} consolidadas · ${s.en_papelera} en papelera`;
+    $("#cuentas").innerHTML = `<b>${s.pendientes}</b> por consolidar · ${s.abiertas ?? 0} en curso · ${s.consolidadas} consolidadas · ${s.en_papelera} en papelera`;
   }catch(e){ $("#cuentas").textContent = e.message; }
 }
 
@@ -199,7 +200,11 @@ function pintar(){
     </tr></thead><tbody>${datos.map(fmt).join("")}</tbody></table>
     ${pestana==="pap" ? `<div class="nota">Nada se ha perdido: puedes devolver cualquiera a la lista.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">${datos.map(r=>
-      `<button class="btn chico" data-rest="${r.ot}">Restaurar OT ${r.ot}</button>`).join("")}</div>` : ""}`;
+      `<button class="btn chico" data-rest="${r.ot}">Restaurar OT ${r.ot}</button>`).join("")}</div>` : ""}
+    ${pestana==="ab" ? `<div class="nota">Son órdenes que el operario dejó abiertas porque el trabajo
+      sigue en curso. No entran al Excel hasta que estén listas.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${datos.map(r=>
+      `<button class="btn chico" data-lista="${r.ot}">Marcar lista la OT ${r.ot}</button>`).join("")}</div>` : ""}`;
 
   v.querySelectorAll("[data-ck]").forEach(c => c.onchange = () => {
     const ot = Number(c.dataset.ck);
@@ -213,6 +218,7 @@ function pintar(){
     pintar();
   };
   v.querySelectorAll("[data-rest]").forEach(b => b.onclick = () => restaurar(Number(b.dataset.rest)));
+  v.querySelectorAll("[data-lista]").forEach(b => b.onclick = () => marcarLista(Number(b.dataset.lista)));
   actualizarCuenta();
 }
 function actualizarCuenta(){
@@ -272,6 +278,11 @@ async function accion(ruta, texto){
   toast(fallo ? ok + " listas, " + fallo + " con error" : ok + " orden(es) actualizadas");
   await cargar();
 }
+async function marcarLista(ot){
+  if(!confirm("¿Dar por terminada la OT " + ot + "? Pasará a la lista por consolidar.")) return;
+  try{ await pedir("/marcar-lista", "&ot=" + ot + "&confirmar=si"); toast("OT " + ot + " lista"); await cargar(); }
+  catch(e){ toast(e.message); }
+}
 async function restaurar(ot){
   try{ await pedir("/restaurar", "&ot=" + ot); toast("OT " + ot + " restaurada"); await cargar(); }
   catch(e){ toast(e.message); }
@@ -282,7 +293,9 @@ async function cargar(){
   if(pestana === "conf"){ pintarAjustes(); return; }
   $("#vista").innerHTML = `<div class="cargando">Cargando…</div>`;
   try{
-    datos = await pedir(pestana === "pend" ? "/registros" : "/papelera");
+    datos = pestana === "pend" ? await pedir("/registros")
+          : pestana === "ab"   ? await pedir("/registros", "&estado=abiertas")
+          :                      await pedir("/papelera");
     datos.sort((a,b) => a.ot - b.ot);
     sel = new Set([...sel].filter(ot => datos.some(r => r.ot === ot)));
     pintar();
@@ -296,6 +309,7 @@ async function cargar(){
 function ir(p){
   pestana = p; sel.clear();
   $("#tabPend").setAttribute("aria-selected", p==="pend");
+  $("#tabAb").setAttribute("aria-selected", p==="ab");
   $("#tabPap").setAttribute("aria-selected", p==="pap");
   $("#tabConf").setAttribute("aria-selected", p==="conf");
   cargar();
@@ -304,6 +318,7 @@ function ir(p){
 function arrancar(){
   leerCfg();
   $("#tabPend").onclick = () => ir("pend");
+  $("#tabAb").onclick   = () => ir("ab");
   $("#tabPap").onclick  = () => ir("pap");
   $("#tabConf").onclick = () => ir("conf");
   $("#btnCopiar").onclick = copiar;

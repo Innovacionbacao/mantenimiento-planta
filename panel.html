@@ -114,6 +114,7 @@
     <button class="tab" id="tabAb" role="tab" aria-selected="false">En curso</button>
     <button class="tab" id="tabPap" role="tab" aria-selected="false">Papelera</button>
     <button class="tab" id="tabCat" role="tab" aria-selected="false">Catálogo</button>
+    <button class="tab" id="tabPrev" role="tab" aria-selected="false">Preventivo</button>
     <button class="tab" id="tabConf" role="tab" aria-selected="false">Ajustes</button>
   </div>
 </header>
@@ -224,6 +225,7 @@ function pintar(){
   const v = $("#vista");
   if(pestana==="conf"){ pintarAjustes(); return; }
   if(pestana==="cat"){ pintarCatalogo(); return; }
+  if(pestana==="prev"){ pintarPreventivo(); return; }
   if(!datos.length){
     v.innerHTML = `<div class="vacio">${pestana==="pend"
       ? "No hay órdenes por consolidar. Todo lo capturado ya pasó al Excel."
@@ -273,6 +275,213 @@ function actualizarCuenta(){
       b.style.display = visibles.includes(id) ? "" : "none";
       b.disabled = !n;
     });
+}
+
+/* ---------- preventivo ---------- */
+function partirCsv(txt){
+  const limpio = txt.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trim();
+  const primera = limpio.split("\n")[0];
+  const sep = [";", ",", "\t"].sort((a,b) =>
+    primera.split(b).length - primera.split(a).length)[0];
+  const filas = [];
+  let campo = "", fila = [], comillas = false;
+  for(let i = 0; i < limpio.length; i++){
+    const c = limpio[i];
+    if(comillas){
+      if(c === '"' && limpio[i+1] === '"'){ campo += '"'; i++; }
+      else if(c === '"') comillas = false;
+      else campo += c;
+    }else if(c === '"') comillas = true;
+    else if(c === sep){ fila.push(campo); campo = ""; }
+    else if(c === "\n"){ fila.push(campo); filas.push(fila); fila = []; campo = ""; }
+    else campo += c;
+  }
+  fila.push(campo); if(fila.length > 1 || fila[0]) filas.push(fila);
+  return filas.map(f => f.map(x => x.trim()));
+}
+
+/* Del CSV de horómetros: una fila por medición, una columna por equipo.
+   Las columnas de control (id, usuario, fecha, hora) se reconocen por nombre. */
+function leerCsvHorometros(txt){
+  const filas = partirCsv(txt);
+  if(filas.length < 2) throw new Error("el archivo no tiene filas de datos");
+  const enc = filas[0];
+  const control = /^(id|usuario|user|fecha|hora|folio|estatus|status)/i;
+  const iFecha = enc.findIndex(h => /fecha/i.test(h));
+  const iUsuario = enc.findIndex(h => /usuario|user/i.test(h));
+  const equipos = enc.map((h,i) => ({h, i})).filter(x => x.h && !control.test(x.h));
+  if(!equipos.length) throw new Error("no se reconocieron columnas de equipos");
+  const norm = f => {
+    if(!f) return "";
+    const m = f.match(/(\d{1,4})[\/-](\d{1,2})[\/-](\d{1,4})/);
+    if(!m) return f;
+    return m[1].length === 4 ? `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`
+                             : `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  };
+  const mediciones = [];
+  for(let r = 1; r < filas.length; r++){
+    const f = filas[r];
+    if(!f.some(x => x)) continue;
+    const valores = {};
+    equipos.forEach(e => {
+      const v = (f[e.i] || "").replace(/\s/g,"").replace(",", ".");
+      if(v !== "" && !isNaN(Number(v))) valores[e.h] = Number(v);
+    });
+    if(Object.keys(valores).length)
+      mediciones.push({fecha: norm(iFecha >= 0 ? f[iFecha] : ""),
+                       usuario: iUsuario >= 0 ? f[iUsuario] : "", valores});
+  }
+  if(!mediciones.length) throw new Error("no se leyó ninguna medición con números");
+  return {mediciones, equipos: equipos.map(e => e.h)};
+}
+
+async function pintarPreventivo(){
+  $("#barra").style.display = "none";
+  $("#vista").innerHTML = `<div class="cargando">Consultando el plan…</div>`;
+  let a;
+  try{ a = await pedir("/alertas"); }
+  catch(e){ $("#vista").innerHTML = `<div class="vacio">No se pudo consultar: ${e.message}</div>`; return; }
+
+  const filas = a.alertas || [];
+  const pct = f => f.uso === null ? "—" : Math.round(f.uso*100) + "%";
+  const color = f => f.estado === "vencido" ? "var(--alert)"
+                   : f.estado === "proximo" ? "#B07D00" : "var(--ok)";
+  const etiqueta = {vencido:"Vencido", proximo:"Próximo", "en condiciones":"En condiciones",
+                    "sin lectura":"Sin lectura"};
+
+  $("#vista").innerHTML = `
+    <div class="ajustes" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+      <div><div style="font-size:24px;font-weight:600;color:var(--alert)">${a.vencidas}</div>
+        <div style="font-size:12.5px;color:var(--ink-2)">vencidas</div></div>
+      <div><div style="font-size:24px;font-weight:600;color:#B07D00">${a.proximas}</div>
+        <div style="font-size:12.5px;color:var(--ink-2)">próximas</div></div>
+      <div><div style="font-size:24px;font-weight:600;color:var(--ok)">${a.en_condiciones}</div>
+        <div style="font-size:12.5px;color:var(--ink-2)">en condiciones</div></div>
+      <div><div style="font-size:24px;font-weight:600;color:var(--ink-2)">${a.sin_lectura}</div>
+        <div style="font-size:12.5px;color:var(--ink-2)">sin lectura</div></div>
+      <div style="margin-left:auto;text-align:right">
+        <div style="font-size:12.5px;color:var(--ink-2)">Horómetros al</div>
+        <div style="font-size:13.5px">${a.actualizado || "sin cargar"}</div></div>
+    </div>
+
+    <div class="ajustes">
+      <label>Cargar lecturas de horómetro</label>
+      <p style="font-size:13px;color:var(--ink-2);margin:4px 0 10px">
+        El CSV de Linkaform o el archivo horometros-actuales.json. Una fila por medición y
+        una columna por equipo; las columnas de id, usuario, fecha y hora se reconocen solas.</p>
+      <input type="file" id="a_horo" accept=".csv,.json,text/csv,application/json">
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13.5px">
+        <input type="checkbox" id="a_crear" checked style="width:18px;height:18px">
+        Generar las órdenes de lo que quede vencido
+      </label>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap">
+        <button class="btn main" id="btnHoro" type="button" disabled>Cargar horómetros</button>
+        <button class="btn" id="btnRevisar" type="button">Revisar plan y generar órdenes</button>
+        <span id="progHoro" style="font-size:13px;color:var(--ink-2)"></span>
+      </div>
+    </div>
+
+    <div class="ajustes">
+      <label>Plan preventivo (${filas.length} actividades)</label>
+      <p style="font-size:13px;color:var(--ink-2);margin:4px 0 10px">
+        Un renglón por actividad: <b>Equipo | Actividad | Frecuencia (h) | Último mantenimiento (h)</b>.
+        También puedes cargar el archivo plan-preventivo.json.</p>
+      <input type="file" id="a_plan" accept=".json,application/json" style="margin-bottom:10px">
+      <textarea id="c_plan" rows="14" style="width:100%;font-family:ui-monospace,monospace;
+        font-size:12px;padding:10px;border:1px solid var(--line);border-radius:8px">${
+        filas.map(f => `${f.equipo} | ${f.actividad} | ${f.frecuencia} | ${f.ultimo}`).join("\n")}</textarea>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn main" id="btnPlan" type="button">Guardar plan</button>
+        <button class="btn" id="btnPlanRec" type="button">Descartar cambios</button>
+      </div>
+    </div>
+
+    <div class="ajustes">
+      <label>Estado de cada actividad</label>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">
+        <thead><tr><th style="text-align:left">Equipo</th><th style="text-align:left">Actividad</th>
+          <th class="num">Frec.</th><th class="num">Lleva</th><th class="num">Uso</th>
+          <th style="text-align:left">Estado</th></tr></thead>
+        <tbody>${filas.slice(0,60).map(f => `<tr>
+          <td>${f.equipo}</td><td>${f.actividad}</td>
+          <td class="num">${f.frecuencia}</td><td class="num">${f.horas === null ? "—" : Math.round(f.horas)}</td>
+          <td class="num" style="color:${color(f)};font-weight:600">${pct(f)}</td>
+          <td style="color:${color(f)}">${etiqueta[f.estado]}</td></tr>`).join("")}</tbody>
+      </table>
+      ${filas.length > 60 ? `<p style="font-size:12.5px;color:var(--ink-2)">
+        Se muestran las 60 más urgentes de ${filas.length}.</p>` : ""}
+    </div>`;
+
+  let archHoro = null, archPlan = null;
+  $("#a_horo").onchange = e => { archHoro = e.target.files[0] || null;
+    $("#btnHoro").disabled = !archHoro; $("#progHoro").textContent = archHoro ? archHoro.name : ""; };
+  $("#a_plan").onchange = async e => {
+    archPlan = e.target.files[0] || null;
+    if(!archPlan) return;
+    try{
+      const d = JSON.parse(await archPlan.text());
+      const plan = Array.isArray(d) ? d : d.plan;
+      $("#c_plan").value = plan.map(p => `${p.equipo} | ${p.actividad} | ${p.frecuencia} | ${p.ultimo||0}`).join("\n");
+      toast(plan.length + " actividades leídas. Revisa y guarda.");
+    }catch(err){ toast("No se pudo leer: " + err.message); }
+  };
+
+  $("#btnHoro").onclick = async () => {
+    if(!archHoro) return;
+    let mediciones;
+    try{
+      const txt = await archHoro.text();
+      if(archHoro.name.toLowerCase().endsWith(".json")){
+        const d = JSON.parse(txt);
+        mediciones = Array.isArray(d.mediciones) ? d.mediciones : [d];
+      }else{
+        const r = leerCsvHorometros(txt);
+        mediciones = r.mediciones;
+        $("#progHoro").textContent = `${r.mediciones.length} medición(es), ${r.equipos.length} equipos…`;
+      }
+    }catch(err){ toast("No se pudo leer: " + err.message); return; }
+
+    const crear = $("#a_crear").checked;
+    try{
+      const r = await fetch(url("/horometros", crear ? "" : "&crear=no"), { method:"POST",
+        headers:{"Content-Type":"application/json"}, body: JSON.stringify({mediciones}) });
+      const d = await r.json();
+      if(!r.ok || !d.ok) throw new Error(d.error || "error " + r.status);
+      toast(`${d.leidos} lecturas guardadas${crear ? ", " + (d.creadas||0) + " órdenes creadas" : ""}`);
+      pintarPreventivo();
+    }catch(err){ toast(err.message); }
+  };
+
+  $("#btnRevisar").onclick = async () => {
+    try{
+      const previo = await pedir("/revisar");
+      const n = previo.pendientes_de_crear || 0;
+      if(!n){ toast("No hay nada vencido sin orden"); return; }
+      if(!confirm(`Hay ${n} actividad(es) vencidas sin orden. ¿Generarlas?`)) return;
+      const d = await pedir("/revisar", "&confirmar=si");
+      toast(`${d.creadas} orden(es) creadas`);
+      pintarPreventivo();
+    }catch(err){ toast(err.message); }
+  };
+
+  $("#btnPlanRec").onclick = pintarPreventivo;
+  $("#btnPlan").onclick = async () => {
+    const plan = $("#c_plan").value.split("\n").map(l => l.trim()).filter(Boolean).map((l,i) => {
+      const p = l.split("|").map(x => x.trim());
+      return {id:"p"+(i+1), equipo:p[0], actividad:p[1],
+              frecuencia:Number(p[2]), ultimo:Number(p[3])||0};
+    }).filter(p => p.equipo && p.actividad && p.frecuencia > 0);
+    if(!plan.length){ toast("El plan quedó vacío"); return; }
+    if(!confirm(`¿Guardar el plan con ${plan.length} actividades?`)) return;
+    try{
+      const r = await fetch(url("/plan"), { method:"POST",
+        headers:{"Content-Type":"application/json"}, body: JSON.stringify({plan}) });
+      const d = await r.json();
+      if(!r.ok || !d.ok) throw new Error(d.error || "error " + r.status);
+      toast(`Plan guardado: ${d.actividades} actividades en ${d.equipos} equipos`);
+      pintarPreventivo();
+    }catch(err){ toast(err.message); }
+  };
 }
 
 function texto(lista){ return lista.join("\n"); }
@@ -549,6 +758,7 @@ async function accion(ruta, texto, pideConfirmar = true){
 async function cargar(){
   if(pestana === "conf"){ pintarAjustes(); return; }
   if(pestana === "cat"){ pintarCatalogo(); return; }
+  if(pestana === "prev"){ pintarPreventivo(); return; }
   $("#vista").innerHTML = `<div class="cargando">Cargando…</div>`;
   try{
     datos = pestana === "pend" ? await pedir("/registros")
@@ -570,6 +780,7 @@ function ir(p){
   $("#tabAb").setAttribute("aria-selected", p==="ab");
   $("#tabPap").setAttribute("aria-selected", p==="pap");
   $("#tabCat").setAttribute("aria-selected", p==="cat");
+  $("#tabPrev").setAttribute("aria-selected", p==="prev");
   $("#tabConf").setAttribute("aria-selected", p==="conf");
   cargar();
 }
@@ -586,6 +797,7 @@ function arrancar(){
   $("#tabAb").onclick   = () => ir("ab");
   $("#tabPap").onclick  = () => ir("pap");
   $("#tabCat").onclick  = () => ir("cat");
+  $("#tabPrev").onclick = () => ir("prev");
   $("#fichaCerrar").onclick = cerrarFicha;
   $("#ficha").onclick = e => { if(e.target.id === "ficha") cerrarFicha(); };
   document.addEventListener("keydown", e => { if(e.key === "Escape") cerrarFicha(); });

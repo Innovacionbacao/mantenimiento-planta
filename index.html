@@ -184,8 +184,8 @@
   </div>
   <div class="tabs" role="tablist">
     <button class="tab" id="tab-form" role="tab" aria-selected="true">Nueva orden</button>
-    <button class="tab" id="tab-list" role="tab" aria-selected="false">Por enviar<span class="pill" id="count">0</span></button>
     <button class="tab" id="tab-abiertas" role="tab" aria-selected="false">En curso<span class="pill" id="countAb">0</span></button>
+    <button class="tab" id="tab-list" role="tab" aria-selected="false">Listas<span class="pill" id="count">0</span></button>
   </div>
 </header>
 
@@ -310,7 +310,6 @@
   <!-- ---------- GUARDADAS ---------- -->
   <div id="view-list" class="hide">
     <div id="list"></div>
-    <div class="note" id="pasteNote"></div>
     <div class="setting">
       <span>Decimales al exportar</span>
       <select id="cfg_dec">
@@ -347,8 +346,9 @@
     <span style="flex:1;font-size:13px;color:var(--ink-2)" id="avisoAb"></span>
   </div>
   <div class="inner hide" id="bar-list">
+    <button class="btn ghost" id="btnActualizarL" type="button">Actualizar</button>
     <button class="btn ghost" id="btnCopiar" type="button">Copiar</button>
-    <button class="btn main" id="btnEnviar" type="button">Reintentar envío</button>
+    <button class="btn main hide" id="btnEnviar" type="button">Reintentar envío</button>
   </div>
 </div>
 
@@ -371,7 +371,7 @@ const LLEGADA = ["Sin inventario","en bodega","En PHC"];
 const INSUMO  = ["En alistamiento","Listo"];
 
 let state = { items: [], nextOT: 478, dec: ",", editId: null, editRemota: null,
-              servidor: "", quien: "", abiertas: [] };
+              servidor: "", quien: "", abiertas: [], listas: [] };
 
 /* ---------- utilidades ---------- */
 const $ = s => document.querySelector(s);
@@ -572,7 +572,7 @@ async function guardar(){
       const ot = await enviarUna(r);       // sale de una al servicio
       limpiar();
       toast("OT " + ot + (r.abierta ? " abierta y enviada" : " enviada"));
-      if(r.abierta) cargarAbiertas();
+      if(r.abierta) cargarAbiertas(); else cargarListas();
       pintarTodo();
       btn.disabled = false; btn.textContent = "Guardar y enviar";
       return;
@@ -618,6 +618,10 @@ async function borrar(id){
 }
 
 /* ---------- exportación ---------- */
+const COLS_SRV = ["ot","fecha","equipo","area","interv","prov","trabajo","info","prog","semprog",
+                  "estado","horom","tiempo","nmec","hmec","naux","haux","fin","semfin",
+                  "dis","ped","lle","ins","costo"];
+const DEC_SRV = new Set(["horom","tiempo","hmec","haux","costo"]);
 function num(v){ if(v==="" || v==null) return ""; return state.dec === "," ? String(v).replace(".", ",") : String(v); }
 function fila(r){
   return [ r.ot, ddmmyyyy(r.fecha), r.equipo, r.area, r.interv, r.prov, r.trabajo, r.info,
@@ -629,11 +633,18 @@ function tsv(){
   return state.items.map(r => fila(r).map(c => String(c ?? "").replace(/[\t\n\r]+/g," ")).join("\t")).join("\n");
 }
 async function copiar(){
-  if(!state.items.length){ toast("No hay órdenes guardadas"); return; }
-  const txt = tsv();
+  const desdeServicio = !state.items.length && state.listas && state.listas.length;
+  if(!state.items.length && !desdeServicio){ toast("No hay órdenes para copiar"); return; }
+  const txt = desdeServicio
+    ? state.listas.map(r => COLS_SRV.map(c => {
+        let v = r[c] ?? "";
+        if(DEC_SRV.has(c) && v !== "" && state.dec === ",") v = String(v).replace(".", ",");
+        return String(v).replace(/[\t\n\r]+/g, " ");
+      }).join("\t")).join("\n")
+    : tsv();
   try{
     await navigator.clipboard.writeText(txt);
-    toast(state.items.length + " fila(s) copiadas");
+    toast((desdeServicio ? state.listas.length : state.items.length) + " fila(s) copiadas");
   }catch(e){
     const ta=document.createElement("textarea");
     ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
@@ -776,7 +787,7 @@ async function marcarLista(ot){
     const d = await resp.json().catch(()=>({}));
     if(!resp.ok || !d.ok) throw new Error(d.error || "error " + resp.status);
     toast("OT " + ot + " marcada como lista");
-    await cargarAbiertas();
+    await cargarAbiertas(); await cargarListas();
   }catch(e){ toast("No se pudo: " + e.message); }
 }
 
@@ -819,61 +830,92 @@ async function enviarPendientes(){
 }
 
 /* ---------- pintado ---------- */
+function tarjetaLista(r){
+  return `<div class="item">
+    <div class="l1"><span class="n">OT ${r.ot}</span>
+      <span class="badge ok">Lista</span>
+      <span class="est">${r.estado || "sin estado"}</span></div>
+    <div class="eq">${r.equipo || ""}</div>
+    <div class="meta">${r.fecha || ""} · ${r.interv || ""} · ${r.trabajo || ""}</div>
+    <div class="acts"><button type="button" data-reabrir="${r.ot}">Devolver a En curso</button></div>
+  </div>`;
+}
+function tarjetaLocal(r){
+  return `<div class="item">
+    <div class="l1"><span class="n">${r.abierta ? "Orden abierta" : "Orden"}</span>
+      <span class="badge">Sin enviar</span>
+      <span class="est">${r.estado || "sin estado"}</span></div>
+    <div class="eq">${r.equipo || ""}</div>
+    <div class="meta">${ddmmyyyy(r.fecha)} · ${r.interv || ""} · ${r.trabajo || ""}</div>
+    <div class="acts">
+      <button type="button" data-ed="${r.id}">Editar</button>
+      <button type="button" class="del" data-del="${r.id}">Borrar</button>
+    </div>`;
+}
+
+async function cargarListas(){
+  if(!hayServidor()) return;
+  try{
+    const r = await fetch(urlServicio() + "/registros?k=" + encodeURIComponent(CLAVE_SERVIDOR));
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error || "error " + r.status);
+    state.listas = d.sort((a,b) => a.ot - b.ot);
+  }catch(e){ state.listas = null; }
+  pintarTodo();
+}
+
+async function reabrir(ot){
+  if(!confirm("¿Devolver la OT " + ot + " a En curso para seguir completándola?")) return;
+  try{
+    const resp = await fetch(urlServicio() + "/reabrir?k=" + encodeURIComponent(CLAVE_SERVIDOR) + "&ot=" + ot + "&confirmar=si");
+    const d = await resp.json().catch(()=>({}));
+    if(!resp.ok || !d.ok) throw new Error(d.error || "error " + resp.status);
+    toast("OT " + ot + " volvió a En curso");
+    await cargarListas(); await cargarAbiertas();
+  }catch(e){ toast("No se pudo: " + e.message); }
+}
+
 function pintarTodo(){
-  $("#otnum").textContent = state.editId ? "editando" : (hayServidor() ? "automática" : state.nextOT);
-  $("#count").textContent = state.items.length;
+  $("#otnum").textContent = state.editId ? "editando"
+    : state.editRemota ? ("OT " + state.editRemota)
+    : (hayServidor() ? "automática" : state.nextOT);
+  $("#countAb").textContent = state.abiertas.length;
+  $("#count").textContent = state.listas ? state.listas.length : (state.items.length || 0);
+  $("#cfg_quien").value = state.quien;
+  $("#cfg_dec").value = state.dec;
   $("#cfg_ot").value = state.nextOT;
   if(SERVIDOR) $("#fila_ot").classList.add("hide");
-  $("#cfg_quien").value = state.quien;
-  if(SERVIDOR){ $("#fila_srv").classList.add("hide"); }
-  else { $("#cfg_srv").value = state.servidor; }
-  $("#cfg_dec").value = state.dec;
+  if(SERVIDOR){ $("#fila_srv").classList.add("hide"); } else { $("#cfg_srv").value = state.servidor; }
 
+  const sinEnviar = state.items;
+  $("#btnEnviar").classList.toggle("hide", !sinEnviar.length);
+  $("#btnCopiar").classList.toggle("hide", !(sinEnviar.length || (state.listas && state.listas.length)));
+
+  let html = "";
+  if(sinEnviar.length){
+    html += `<div class="nota">Estas ${sinEnviar.length === 1 ? "no salió" : "no salieron"} al servicio,
+      seguramente por falta de señal. Toca Reintentar envío cuando tengas conexión.</div>`;
+    html += sinEnviar.map(tarjetaLocal).join("");
+  }
+  if(state.listas === null){
+    html += `<div class="empty"><p>No se pudo consultar el servicio.</p>
+      <p>Revisa la conexión y toca Actualizar.</p></div>`;
+  }else if(!state.listas.length && !sinEnviar.length){
+    html += `<div class="empty"><p>No hay órdenes terminadas esperando.</p>
+      <p>Las que marques listas en En curso aparecen aquí hasta que se pasen al Excel.</p></div>`;
+  }else if(state.listas.length){
+    html += `<div class="nota">Terminadas y esperando que se consoliden en el Excel.
+      Si alguna quedó mal, devuélvela a En curso.</div>`;
+    html += state.listas.map(tarjetaLista).join("");
+  }
   const cont = $("#list");
-  if(!state.items.length){
-    cont.innerHTML = `<div class="empty"><p>No hay nada por enviar.</p>
-      <p>${hayServidor() ? "Todo lo registrado ya salió al servicio."
-                         : "Las órdenes que registres quedan aquí."}</p></div>`;
-  }else{
-    cont.innerHTML = "";
-    state.items.slice().reverse().forEach(r=>{
-      const d = document.createElement("div");
-      d.className="item";
-      const marca = hayServidor()
-        ? `<span class="badge">Sin enviar</span>` : "";
-      d.innerHTML = `<div class="l1"><span class="n">OT ${r.enviada || !hayServidor() ? r.ot : "por asignar"}</span>
-          ${marca}<span class="est">${r.estado || "sin estado"}</span></div>
-        <div class="eq">${r.equipo}</div>
-        <div class="meta">${ddmmyyyy(r.fecha)} · ${r.interv} · ${r.trabajo}</div>
-        <div class="acts">
-          <button type="button" data-ed="${r.id}">Editar</button>
-          <button type="button" class="del" data-del="${r.id}">Borrar</button>
-        </div>`;
-      cont.appendChild(d);
-    });
-    cont.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>editar(b.dataset.ed));
-    cont.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>borrar(b.dataset.del));
-  }
-  const primera = state.items.length ? state.items[0].ot : state.nextOT;
-  $("#pasteNote").innerHTML = hayServidor()
-    ? `Aquí solo aparecen las órdenes que no alcanzaron a salir, por ejemplo si se capturaron
-       sin señal. Se despachan solas al tocar Reintentar envío. Copiar y CSV quedan como
-       respaldo por si el servicio estuviera caído.`
-    : `Para pasarlas al archivo: abre la hoja <b>Trabajos</b>, ubícate en la columna <b>B</b> de la
-       primera fila vacía y pega. Las 24 columnas van en el mismo orden de la hoja.`;
-}
-function mostrar(cual){
-  const vistas = {form:"view-form", list:"view-list", ab:"view-abiertas"};
-  const barras = {form:"bar-form", list:"bar-list", ab:"bar-ab"};
-  const pest   = {form:"tab-form", list:"tab-list", ab:"tab-abiertas"};
-  for(const k in vistas){
-    $("#"+vistas[k]).classList.toggle("hide", k !== cual);
-    $("#"+barras[k]).classList.toggle("hide", k !== cual);
-    $("#"+pest[k]).setAttribute("aria-selected", String(k === cual));
-  }
+  cont.innerHTML = html;
+  cont.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => editar(b.dataset.ed));
+  cont.querySelectorAll("[data-del]").forEach(b => b.onclick = () => borrar(b.dataset.del));
+  cont.querySelectorAll("[data-reabrir]").forEach(b => b.onclick = () => reabrir(Number(b.dataset.reabrir)));
 }
 function verForm(){ mostrar("form"); }
-function verLista(){ mostrar("list"); pintarTodo(); }
+function verLista(){ mostrar("list"); pintarTodo(); cargarListas(); }
 function verAbiertas(){ mostrar("ab"); pintarAbiertas(); cargarAbiertas(); }
 
 /* ---------- acceso ----------
@@ -929,13 +971,14 @@ async function bloquear(){
   $("#tab-list").onclick = verLista;
   $("#tab-abiertas").onclick = verAbiertas;
   $("#btnRecargar").onclick = cargarAbiertas;
+  $("#btnActualizarL").onclick = cargarListas;
   $("#btnGuardar").onclick = guardar;
   $("#btnLimpiar").onclick = limpiar;
   $("#btnCopiar").onclick = copiar;
   $("#btnCsv").onclick = csv;
   $("#btnBloquear").onclick = bloquear;
   $("#btnEnviar").onclick = enviarPendientes;
-  $("#cfg_quien").onchange = async e => { state.quien = e.target.value.trim(); await guardarTodo(); };
+  $("#cfg_quien").oninput = async e => { state.quien = e.target.value.trim(); await guardarTodo(); };
   $("#cfg_srv").onchange = async e => { state.servidor = e.target.value.trim(); await guardarTodo(); pintarTodo(); };
   $("#cfg_dec").onchange = async e => { state.dec = e.target.value; await guardarTodo(); };
   $("#cfg_ot").onchange = async e => { state.nextOT = Number(e.target.value)||478; await guardarTodo(); pintarTodo(); };

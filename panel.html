@@ -108,6 +108,9 @@
     <button class="btn" id="btnCopiar" type="button">Copiar para Excel</button>
     <button class="btn peligro" id="btnPapelera" type="button">A la papelera</button>
     <button class="btn main" id="btnConsolidar" type="button">Marcar consolidadas</button>
+    <button class="btn main" id="btnListas" type="button">Marcar listas</button>
+    <button class="btn" id="btnRestaurar" type="button">Restaurar</button>
+    <button class="btn peligro" id="btnEliminar" type="button">Eliminar definitivo</button>
   </div>
 </div>
 
@@ -117,7 +120,7 @@
 /* ---------- conexión ----------
    Pega aquí la dirección del Worker, sin barra final, y este panel queda
    configurado para cualquiera que lo abra.                                  */
-const SERVIDOR = "https://ordenes-bacao.mgereda.workers.dev";
+const SERVIDOR = "";
 const CLAVE_SERVIDOR = "2MWpGyZcdUQqMTSgiHXAo5gx";
 
 const PIN_HASH = 3821502243;
@@ -190,21 +193,18 @@ function pintar(){
     v.innerHTML = `<div class="vacio">${pestana==="pend"
       ? "No hay órdenes por consolidar. Todo lo capturado ya pasó al Excel."
       : "La papelera está vacía."}</div>`;
-    $("#barra").style.display = pestana==="pend" ? "" : "none";
+    $("#barra").style.display = "none";
     actualizarCuenta(); return;
   }
-  $("#barra").style.display = pestana==="pend" ? "" : "none";
+  $("#barra").style.display = "";
   v.innerHTML = `<table><thead><tr>
       <th><input type="checkbox" id="ckTodo"></th><th class="num">OT</th><th>Fecha</th>
       <th>Equipo y trabajo</th><th>Intervención</th><th class="num">Horas</th>
     </tr></thead><tbody>${datos.map(fmt).join("")}</tbody></table>
-    ${pestana==="pap" ? `<div class="nota">Nada se ha perdido: puedes devolver cualquiera a la lista.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${datos.map(r=>
-      `<button class="btn chico" data-rest="${r.ot}">Restaurar OT ${r.ot}</button>`).join("")}</div>` : ""}
-    ${pestana==="ab" ? `<div class="nota">Son órdenes que el operario dejó abiertas porque el trabajo
-      sigue en curso. No entran al Excel hasta que estén listas.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${datos.map(r=>
-      `<button class="btn chico" data-lista="${r.ot}">Marcar lista la OT ${r.ot}</button>`).join("")}</div>` : ""}`;
+    ${pestana==="pap" ? `<div class="nota">Marca las que quieras y usa Restaurar para devolverlas,
+      o Eliminar definitivo para borrarlas de verdad. Lo eliminado no se recupera.</div>` : ""}
+    ${pestana==="ab" ? `<div class="nota">Órdenes que el operario dejó abiertas porque el trabajo sigue
+      en curso. No entran al Excel hasta que estén listas.</div>` : ""}`;
 
   v.querySelectorAll("[data-ck]").forEach(c => c.onchange = () => {
     const ot = Number(c.dataset.ck);
@@ -217,14 +217,24 @@ function pintar(){
     sel = todo.checked ? new Set(datos.map(r=>r.ot)) : new Set();
     pintar();
   };
-  v.querySelectorAll("[data-rest]").forEach(b => b.onclick = () => restaurar(Number(b.dataset.rest)));
-  v.querySelectorAll("[data-lista]").forEach(b => b.onclick = () => marcarLista(Number(b.dataset.lista)));
+
   actualizarCuenta();
 }
+const BOTONES = {
+  pend: ["btnCopiar","btnPapelera","btnConsolidar"],
+  ab:   ["btnListas","btnPapelera"],
+  pap:  ["btnRestaurar","btnEliminar"],
+};
 function actualizarCuenta(){
   const n = sel.size;
   $("#cuenta").textContent = n === 1 ? "1 seleccionada" : n + " seleccionadas";
-  ["btnCopiar","btnPapelera","btnConsolidar"].forEach(id => $("#"+id).disabled = !n);
+  const visibles = BOTONES[pestana] || [];
+  ["btnCopiar","btnPapelera","btnConsolidar","btnListas","btnRestaurar","btnEliminar"]
+    .forEach(id => {
+      const b = $("#"+id);
+      b.style.display = visibles.includes(id) ? "" : "none";
+      b.disabled = !n;
+    });
 }
 
 function pintarAjustes(){
@@ -237,6 +247,18 @@ function pintarAjustes(){
       <option value="," ${cfg.dec===","?"selected":""}>coma (1,5)</option>
       <option value="." ${cfg.dec==="."?"selected":""}>punto (1.5)</option>
     </select>
+
+    <label for="a_sinot">Columna OT al copiar</label>
+    <select id="a_sinot">
+      <option value="no" ${!cfg.sinOt?"selected":""}>Incluirla (pegar en la columna B)</option>
+      <option value="si" ${cfg.sinOt?"selected":""}>Omitirla (pegar en la columna C)</option>
+    </select>
+
+    <label for="a_cont">Próximo número de OT del servicio</label>
+    <div style="display:flex;gap:8px">
+      <input type="number" id="a_cont" placeholder="478" style="flex:1">
+      <button class="btn" id="btnCont" type="button">Fijar</button>
+    </div>
     <p style="font-size:13px;color:var(--ink-2);margin-top:14px">
       Si tu Excel está en español, deja la coma. Con punto, los decimales entran como texto.</p>
   </div>
@@ -244,6 +266,18 @@ function pintarAjustes(){
     desde cualquier computador o celular con el código de acceso.</div>`;
   $("#a_srv").onchange = e => { cfg.servidor = e.target.value.trim(); guardarCfg(); cargar(); };
   $("#a_dec").onchange = e => { cfg.dec = e.target.value; guardarCfg(); };
+  $("#a_sinot").onchange = e => { cfg.sinOt = e.target.value === "si"; guardarCfg(); };
+  pedir("/salud").then(s => { $("#a_cont").value = s.proxima_ot; }).catch(()=>{});
+  $("#btnCont").onclick = async () => {
+    const v = Number($("#a_cont").value);
+    if(!v){ toast("Escribe un número"); return; }
+    if(!confirm("¿La próxima orden que se registre llevará el número " + v + "?")) return;
+    try{
+      const r = await pedir("/contador", "&valor=" + v + "&confirmar=si");
+      toast("Listo: la próxima será la OT " + r.proxima_ot);
+      refrescarCuentas();
+    }catch(e){ toast(e.message); }
+  };
 }
 
 /* ---------- acciones ---------- */
@@ -253,40 +287,33 @@ const COLS = ["ot","fecha","equipo","area","interv","prov","trabajo","info","pro
 const DECIMALES = new Set(["horom","tiempo","hmec","haux","costo"]);
 
 async function copiar(){
+  const cols = cfg.sinOt ? COLS.filter(c => c !== "ot") : COLS;
   const filas = datos.filter(r => sel.has(r.ot)).map(r =>
-    COLS.map(c => {
+    cols.map(c => {
       let v = r[c] ?? "";
       if(DECIMALES.has(c) && v !== "" && cfg.dec === ",") v = String(v).replace(".", ",");
       return String(v).replace(/[\t\n\r]+/g, " ");
     }).join("\t")).join("\n");
   try{
     await navigator.clipboard.writeText(filas);
-    toast(sel.size + " fila(s) copiadas. Pega en la columna B de la hoja Trabajos.");
+    toast(sel.size + " fila(s) copiadas. Pega en la columna " + (cfg.sinOt ? "C" : "B") + " de la hoja Trabajos.");
   }catch(e){ toast("El navegador bloqueó el portapapeles; usa el CSV del servicio"); }
 }
 
-async function accion(ruta, texto){
+async function accion(ruta, texto, pideConfirmar = true){
   const ots = [...sel];
   if(!ots.length) return;
   if(!confirm(texto.replace("{n}", ots.length))) return;
-  let ok = 0, fallo = 0;
+  let ok = 0, fallo = 0, ultimo = "";
   for(const ot of ots){
-    try{ await pedir(ruta, "&ot=" + ot + "&confirmar=si"); ok++; }
-    catch(e){ fallo++; }
+    try{ await pedir(ruta, "&ot=" + ot + (pideConfirmar ? "&confirmar=si" : "")); ok++; }
+    catch(e){ fallo++; ultimo = e.message; }
   }
   sel.clear();
-  toast(fallo ? ok + " listas, " + fallo + " con error" : ok + " orden(es) actualizadas");
+  toast(fallo ? ok + " listas, " + fallo + " con error (" + ultimo + ")" : ok + " orden(es) actualizadas");
   await cargar();
 }
-async function marcarLista(ot){
-  if(!confirm("¿Dar por terminada la OT " + ot + "? Pasará a la lista por consolidar.")) return;
-  try{ await pedir("/marcar-lista", "&ot=" + ot + "&confirmar=si"); toast("OT " + ot + " lista"); await cargar(); }
-  catch(e){ toast(e.message); }
-}
-async function restaurar(ot){
-  try{ await pedir("/restaurar", "&ot=" + ot); toast("OT " + ot + " restaurada"); await cargar(); }
-  catch(e){ toast(e.message); }
-}
+
 
 /* ---------- carga ---------- */
 async function cargar(){
@@ -316,6 +343,12 @@ function ir(p){
 }
 
 function arrancar(){
+  $("#btnListas").onclick = () => accion("/marcar-lista",
+    "¿Dar por terminadas {n} orden(es)? Pasarán a la lista por consolidar.");
+  $("#btnRestaurar").onclick = () => accion("/restaurar",
+    "¿Devolver {n} orden(es) a la lista?", false);
+  $("#btnEliminar").onclick = () => accion("/eliminar",
+    "Vas a borrar {n} orden(es) de forma definitiva. Esto no se puede deshacer. ¿Sigues?");
   leerCfg();
   $("#tabPend").onclick = () => ir("pend");
   $("#tabAb").onclick   = () => ir("ab");

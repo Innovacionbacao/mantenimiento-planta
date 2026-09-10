@@ -54,6 +54,14 @@
   .mes .lb{font-size:10.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden}
   .mes .vv{font-size:10.5px;color:var(--ink-2)}
 
+  .ctrl{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px;align-items:center}
+  .ctrl select{padding:6px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:13px}
+  .ctrl .et{font-size:12.5px;color:var(--ink-2)}
+  .resumen80{background:#F5F7F3;border:1px solid var(--line-2);border-radius:8px;
+    padding:10px 12px;margin-top:12px;font-size:13.5px}
+  .resumen80 b{font-weight:600}
+  svg .ejeTxt{font-size:9.5px;fill:#5C6660}
+  svg .grid{stroke:#EDEFEB;stroke-width:1}
   table{width:100%;border-collapse:collapse;font-size:13.5px}
   th{text-align:left;font-size:12px;font-weight:600;color:var(--ink-2);padding:6px 8px;border-bottom:1px solid var(--line-2)}
   td{padding:7px 8px;border-bottom:1px solid var(--line-2)}
@@ -88,6 +96,8 @@
     <span class="sub" id="periodo">—</span>
     <div class="der">
       <span class="sub" id="sello"></span>
+      <button class="btn" id="btnExpPeriodo" type="button">Exportar período</button>
+      <button class="btn" id="btnExpTodo" type="button">Respaldo completo</button>
       <button class="btn" id="btnRecargar" type="button">Actualizar</button>
     </div>
   </div>
@@ -209,6 +219,109 @@ function agrupar(lista, campo, valor){
   return [...m.entries()].filter(x => x[1] > 0).sort((a,b) => b[1]-a[1]);
 }
 
+/* ---------- exportar ---------- */
+const COLS_EXP = [
+  ["ot","OT"],["fecha","Fecha"],["equipo","Equipo"],["area","Area"],
+  ["interv","Tipo de intervencion"],["prov","Proveedor"],["trabajo","Tipo de trabajo"],
+  ["info","Informacion adicional"],["prog","Fecha de programacion"],["semprog","Semana de programacion"],
+  ["estado","Estado"],["horom","Horometro"],["tiempo","Tiempo del mantenimiento"],
+  ["nmec","Num mecanicos"],["hmec","Horas mtto mecanico"],["naux","Num auxiliares"],
+  ["haux","Horas mtto auxiliar"],["fin","Fecha finalizacion"],["semfin","Semana finalizacion"],
+  ["dis","Disenos"],["ped","Pedido de materiales"],["lle","Llegada materiales"],
+  ["ins","Insumo"],["costo","Costo"],["capturado_por","Capturado por"],["recibido","Recibido"],
+];
+const DECIMAL = new Set(["horom","tiempo","hmec","haux","costo"]);
+
+function descargarCsv(lista, nombre){
+  if(!lista.length){ alert("No hay órdenes para exportar en este período."); return; }
+  const esc = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+  const filas = [COLS_EXP.map(c => c[1]).join(";")];
+  lista.forEach(o => filas.push(COLS_EXP.map(([c]) => {
+    let v = o[c] ?? "";
+    if(DECIMAL.has(c) && v !== "") v = String(v).replace(".", ",");   // Excel en español
+    return esc(v);
+  }).join(";")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\uFEFF" + filas.join("\r\n")],
+    {type:"text/csv;charset=utf-8"}));
+  a.download = nombre;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+
+const hoyTexto = () => new Date().toISOString().slice(0,10);
+
+/* ---------- Pareto ----------
+   Mismo criterio que la hoja del Excel: barras por equipo ordenadas de mayor
+   a menor, línea de porcentaje acumulado y referencia del 80%.             */
+let pBase = "ordenes", pTipo = "";
+
+function pareto(lista){
+  const base = lista.filter(o => !pTipo || (o.interv||"").toLowerCase().includes(pTipo));
+  const m = new Map();
+  base.forEach(o => {
+    const k = (o.equipo||"sin equipo").trim() || "sin equipo";
+    m.set(k, (m.get(k)||0) + (pBase === "horas" ? o._h : 1));
+  });
+  const todos = [...m.entries()].filter(x => x[1] > 0).sort((a,b) => b[1]-a[1]);
+  if(!todos.length) return `<div class="vacio">No hay datos para ese filtro.</div>`;
+
+  const total = todos.reduce((s,x) => s + x[1], 0);
+  let acum = 0;
+  const conAcum = todos.map(([e,v]) => { acum += v; return {e, v, pct: acum/total}; });
+  const corte = conAcum.findIndex(x => x.pct >= 0.8) + 1;
+
+  const mostrar = conAcum.slice(0, 20);
+  const maxV = mostrar[0].v;
+  const W = 900, H = 300, ML = 42, MR = 42, MT = 12, MB = 96;
+  const ancho = (W - ML - MR) / mostrar.length;
+  const y = v => MT + (H - MT - MB) * (1 - v/maxV);
+  const yPct = p => MT + (H - MT - MB) * (1 - p);
+  const corto = t => t.length > 22 ? t.slice(0,21) + "…" : t;
+
+  const barras = mostrar.map((d,i) => {
+    const x = ML + i*ancho;
+    return `<rect x="${x+ancho*0.14}" y="${y(d.v)}" width="${ancho*0.72}" height="${H-MB-y(d.v)}"
+      fill="var(--verde)" rx="2"><title>${d.e}: ${nf(d.v)}</title></rect>
+      <text class="ejeTxt" x="${x+ancho/2}" y="${y(d.v)-4}" text-anchor="middle">${nf(d.v)}</text>
+      <text class="ejeTxt" x="${x+ancho/2}" y="${H-MB+12}" text-anchor="end"
+        transform="rotate(-40 ${x+ancho/2} ${H-MB+12})">${corto(d.e)}</text>`;
+  }).join("");
+
+  const puntos = mostrar.map((d,i) => `${ML + i*ancho + ancho/2},${yPct(d.pct)}`).join(" ");
+  const marcas = mostrar.map((d,i) =>
+    `<circle cx="${ML + i*ancho + ancho/2}" cy="${yPct(d.pct)}" r="3" fill="var(--accent)">
+       <title>acumulado ${Math.round(d.pct*100)}%</title></circle>`).join("");
+
+  const guias = [0,.25,.5,.75,1].map(p =>
+    `<line class="grid" x1="${ML}" x2="${W-MR}" y1="${yPct(p)}" y2="${yPct(p)}"/>
+     <text class="ejeTxt" x="${W-MR+5}" y="${yPct(p)+3}">${Math.round(p*100)}%</text>
+     <text class="ejeTxt" x="${ML-6}" y="${y(maxV*p)+3}" text-anchor="end">${nf(maxV*p)}</text>`).join("");
+
+  const unidad = pBase === "horas" ? "horas" : "órdenes";
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" preserveAspectRatio="xMidYMid meet">
+      ${guias}
+      <line x1="${ML}" x2="${W-MR}" y1="${yPct(0.8)}" y2="${yPct(0.8)}"
+        stroke="var(--alerta)" stroke-width="1.4" stroke-dasharray="5 4"/>
+      <text class="ejeTxt" x="${ML+4}" y="${yPct(0.8)-5}" fill="var(--alerta)">80%</text>
+      ${barras}
+      <polyline points="${puntos}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      ${marcas}
+    </svg>
+    <div class="resumen80">
+      <b>${corte}</b> de ${todos.length} equipos concentran el 80% de ${
+        pBase === "horas" ? "las horas" : "las órdenes"}${pTipo ? " de " + pTipo : ""}:
+      ${conAcum.slice(0, corte).map(x => x.e).join(", ")}.
+      ${todos.length > 20 ? `El gráfico muestra los 20 primeros; el acumulado se calcula sobre los ${todos.length}.` : ""}
+      Total del período: ${nf(total)} ${unidad}.
+    </div>`;
+}
+
+function pintarPareto(){
+  const cont = $("#pareto");
+  if(cont) cont.innerHTML = pareto(todas.filter(enRango));
+}
+
 /* ---------- pintado ---------- */
 function pintar(){
   const lista = todas.filter(enRango);
@@ -250,6 +363,24 @@ function pintar(){
 
     <div class="caja"><h2>Órdenes por mes</h2>${porMes(lista)}</div>
 
+    <div class="caja ancha"><h2>Pareto de equipos</h2>
+      <div class="ctrl">
+        <span class="et">Medido en</span>
+        <select id="p_base">
+          <option value="ordenes">número de órdenes</option>
+          <option value="horas">horas de mantenimiento</option>
+        </select>
+        <span class="et">Intervención</span>
+        <select id="p_tipo">
+          <option value="">todas</option>
+          <option value="correctivo">solo correctivo</option>
+          <option value="preventivo">solo preventivo</option>
+          <option value="mejora">solo mejoras</option>
+        </select>
+      </div>
+      <div id="pareto"></div>
+    </div>
+
     <div class="rejilla">
       <div class="caja"><h2>Horas por tipo de intervención</h2>${barras(tipos,"")}</div>
       <div class="caja"><h2>Órdenes por estado</h2>${barras(estados,"a",ni)}</div>
@@ -267,10 +398,15 @@ function pintar(){
 
     ${personas.length > 1 ? `<div class="caja"><h2>Quién registró</h2>${barras(personas,"a",ni)}</div>` : ""}
 
-    <p style="font-size:12.5px;color:var(--ink-2);margin:16px 0 0">
+    <p style="font-size:12.5px;color:var(--ink-2);margin:16px 0 0" id="notaFinal">
       Las órdenes se ubican en el tiempo por su fecha de finalización, y si no la tienen,
       por la de creación. Las horas salen del campo de duración: ${lista.length - conHoras}
       de estas órdenes no lo tienen y por eso suman cero.</p>`;
+
+  $("#p_base").value = pBase; $("#p_tipo").value = pTipo;
+  $("#p_base").onchange = e => { pBase = e.target.value; pintarPareto(); };
+  $("#p_tipo").onchange = e => { pTipo = e.target.value; pintarPareto(); };
+  pintarPareto();
 }
 
 /* ---------- filtros ---------- */
@@ -299,6 +435,14 @@ function arrancar(){
   };
   $("#f_desde").onchange = manual; $("#f_hasta").onchange = manual;
   $("#btnRecargar").onclick = traer;
+  $("#btnExpPeriodo").onclick = () => {
+    const lista = todas.filter(enRango).sort((a,b) => a.ot - b.ot);
+    const etiqueta = desde ? `${iso(desde)}_a_${iso(hasta)}` : "historico";
+    descargarCsv(lista, `ordenes_${etiqueta}.csv`);
+  };
+  $("#btnExpTodo").onclick = () => {
+    descargarCsv(todas.slice().sort((a,b) => a.ot - b.ot), `respaldo_ordenes_${hoyTexto()}.csv`);
+  };
   aplicarRango(365);
   traer();
 }

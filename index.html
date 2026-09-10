@@ -111,6 +111,7 @@
     border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom))
   }
   .savebar .inner{max-width:520px;margin:0 auto;display:flex;gap:10px;align-items:center}
+  .savebar .inner.hide{display:none}
   .btn{
     padding:13px 16px;border-radius:9px;border:1px solid var(--line);background:#fff;
     font-weight:500;cursor:pointer
@@ -331,7 +332,6 @@
     </div>
     <div class="setting" style="flex-wrap:wrap;gap:8px">
       <button class="btn ghost" type="button" id="btnCsv" style="padding:8px 12px;font-size:13.5px">Descargar CSV</button>
-      <button class="btn ghost" type="button" id="btnLimpias" style="padding:8px 12px;font-size:13.5px">Borrar enviadas</button>
       <button class="btn ghost" type="button" id="btnBloquear" style="padding:8px 12px;font-size:13.5px">Bloquear</button>
     </div>
   </div>
@@ -340,7 +340,7 @@
 <div class="savebar" id="savebar">
   <div class="inner" id="bar-form">
     <button class="btn ghost" id="btnLimpiar" type="button">Limpiar</button>
-    <button class="btn main" id="btnGuardar" type="button">Guardar orden</button>
+    <button class="btn main" id="btnGuardar" type="button">Guardar y enviar</button>
   </div>
   <div class="inner hide" id="bar-ab">
     <button class="btn ghost" id="btnRecargar" type="button">Actualizar</button>
@@ -348,7 +348,7 @@
   </div>
   <div class="inner hide" id="bar-list">
     <button class="btn ghost" id="btnCopiar" type="button">Copiar</button>
-    <button class="btn main" id="btnEnviar" type="button">Enviar</button>
+    <button class="btn main" id="btnEnviar" type="button">Reintentar envío</button>
   </div>
 </div>
 
@@ -361,7 +361,7 @@ const CAT = {"equipos": [{"e": "Banda de rodillos corte mazorca 1", "a": "Recepc
    Pega aquí la dirección de tu Worker, sin barra final. Ejemplo:
    const SERVIDOR = "https://ordenes-bacao.tuusuario.workers.dev";
    Si la dejas vacía, la app funciona igual pero solo con copiar y pegar.  */
-const SERVIDOR = "https://ordenes-bacao.mgereda.workers.dev";
+const SERVIDOR = "";
 const CLAVE_SERVIDOR = "2MWpGyZcdUQqMTSgiHXAo5gx";
 const KEY = "bacao:ots:v1";
 const ESTADOS = ["En planeacion","Programado","En ejecucion","Realizado","Reprogramado ","Cancelado"];
@@ -408,6 +408,14 @@ async function cargar(){
     }catch(e){ /* primera vez: la clave todavía no existe */ }
   }
   try{ aplicar(localStorage.getItem(KEY)); }catch(e){}
+}
+
+/* Las órdenes marcadas como enviadas ya viven en el servicio: se sueltan
+   del teléfono para que Por enviar muestre solo lo que falta despachar. */
+async function soltarEnviadas(){
+  const antes = state.items.length;
+  state.items = state.items.filter(i => !i.enviada);
+  if(state.items.length !== antes) await guardarTodo();
 }
 async function guardarTodo(){
   const txt = JSON.stringify({items:state.items, nextOT:state.nextOT, dec:state.dec,
@@ -508,7 +516,7 @@ function limpiar(){
   state.editRemota = null;
   $("#f_abierta").checked = false;
   $("#s_abierta").classList.remove("hide");
-  $("#btnGuardar").textContent = "Guardar orden";
+  $("#btnGuardar").textContent = "Guardar y enviar";
   document.querySelectorAll(".err").forEach(e=>e.classList.remove("err"));
   window.scrollTo({top:0});
 }
@@ -549,17 +557,34 @@ async function guardar(){
   const r = leerForm();
   const faltan = validar(r);
   if(faltan.length){ toast("Falta: " + faltan.join(", ")); return; }
-  if(state.editId){
+
+  if(state.editId){                       // corrigiendo una que aún no ha salido
     state.items = state.items.map(i => i.id===state.editId ? r : i);
-    toast("Orden " + r.ot + " actualizada");
-  }else{
-    state.items.push(r);
-    state.nextOT = Number(state.nextOT) + 1;
-    toast("Orden " + r.ot + " guardada");
+    await guardarTodo(); limpiar(); pintarTodo();
+    toast("Orden actualizada");
+    return;
   }
+
+  const btn = $("#btnGuardar"); btn.disabled = true; btn.textContent = "Enviando…";
+  if(hayServidor()){
+    try{
+      const ot = await enviarUna(r);       // sale de una al servicio
+      limpiar();
+      toast("OT " + ot + (r.abierta ? " abierta y enviada" : " enviada"));
+      if(r.abierta) cargarAbiertas();
+      pintarTodo();
+      btn.disabled = false; btn.textContent = "Guardar y enviar";
+      return;
+    }catch(e){
+      r.error = e.message;                 // sin señal: queda en la cola
+    }
+  }
+  state.items.push(r);
+  state.nextOT = Number(state.nextOT) + 1;
   await guardarTodo();
-  limpiar();
-  pintarTodo();
+  limpiar(); pintarTodo();
+  btn.disabled = false; btn.textContent = "Guardar y enviar";
+  toast(hayServidor() ? "Sin conexión: queda en Por enviar" : "Orden guardada en el teléfono");
 }
 
 function editar(id){
@@ -775,26 +800,21 @@ async function enviarPendientes(){
   if(!pend.length){ toast("No hay órdenes pendientes por enviar"); return; }
   const btn = $("#btnEnviar"); btn.disabled = true; btn.textContent = "Enviando…";
   let ok = 0, fallo = 0, ultimoError = "";
+  const logradas = [];
   for(const r of pend){
     try{
       r.ot = await enviarUna(r);
-      r.enviada = true;
+      logradas.push(r.id);
       ok++;
     }catch(e){ fallo++; ultimoError = e.message || "sin conexión"; }
   }
+  state.items = state.items.filter(i => !logradas.includes(i.id));
+  if(ok) cargarAbiertas();
   await guardarTodo();
-  btn.disabled = false; btn.textContent = "Enviar";
+  btn.disabled = false; btn.textContent = "Reintentar envío";
   pintarTodo();
   toast(fallo ? ok + " enviadas, " + fallo + " sin enviar (" + ultimoError + ")"
               : ok + " orden(es) enviadas");
-}
-
-async function borrarEnviadas(){
-  const n = state.items.filter(i=>i.enviada).length;
-  if(!n){ toast("No hay órdenes enviadas"); return; }
-  if(!confirm("¿Quitar de este teléfono las " + n + " órdenes ya enviadas? Siguen guardadas en el servicio.")) return;
-  state.items = state.items.filter(i=>!i.enviada);
-  await guardarTodo(); pintarTodo();
 }
 
 /* ---------- pintado ---------- */
@@ -808,22 +828,22 @@ function pintarTodo(){
 
   const cont = $("#list");
   if(!state.items.length){
-    cont.innerHTML = `<div class="empty"><p>Todavía no hay órdenes guardadas.</p>
-      <p>Las que registres quedan aquí hasta que las pases al Excel.</p></div>`;
+    cont.innerHTML = `<div class="empty"><p>No hay nada por enviar.</p>
+      <p>${hayServidor() ? "Todo lo registrado ya salió al servicio."
+                         : "Las órdenes que registres quedan aquí."}</p></div>`;
   }else{
     cont.innerHTML = "";
     state.items.slice().reverse().forEach(r=>{
       const d = document.createElement("div");
       d.className="item";
-      const marca = r.enviada
-        ? `<span class="badge ok">Enviada</span>`
-        : (hayServidor() ? `<span class="badge">Pendiente</span>` : "");
+      const marca = hayServidor()
+        ? `<span class="badge">Sin enviar</span>` : "";
       d.innerHTML = `<div class="l1"><span class="n">OT ${r.enviada || !hayServidor() ? r.ot : "por asignar"}</span>
           ${marca}<span class="est">${r.estado || "sin estado"}</span></div>
         <div class="eq">${r.equipo}</div>
         <div class="meta">${ddmmyyyy(r.fecha)} · ${r.interv} · ${r.trabajo}</div>
         <div class="acts">
-          <button type="button" data-ed="${r.id}"${r.enviada?" disabled":""}>Editar</button>
+          <button type="button" data-ed="${r.id}">Editar</button>
           <button type="button" class="del" data-del="${r.id}">Borrar</button>
         </div>`;
       cont.appendChild(d);
@@ -832,9 +852,12 @@ function pintarTodo(){
     cont.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>borrar(b.dataset.del));
   }
   const primera = state.items.length ? state.items[0].ot : state.nextOT;
-  $("#pasteNote").innerHTML = `Para pasarlas al archivo: abre la hoja <b>Trabajos</b>, ubícate en la
-    columna <b>B</b> de la primera fila vacía (la de la OT ${primera}, hoy <code>B482</code>) y pega.
-    Las 24 columnas van en el mismo orden de la hoja. Después borra las órdenes aquí para no repetirlas.`;
+  $("#pasteNote").innerHTML = hayServidor()
+    ? `Aquí solo aparecen las órdenes que no alcanzaron a salir, por ejemplo si se capturaron
+       sin señal. Se despachan solas al tocar Reintentar envío. Copiar y CSV quedan como
+       respaldo por si el servicio estuviera caído.`
+    : `Para pasarlas al archivo: abre la hoja <b>Trabajos</b>, ubícate en la columna <b>B</b> de la
+       primera fila vacía y pega. Las 24 columnas van en el mismo orden de la hoja.`;
 }
 function mostrar(cual){
   const vistas = {form:"view-form", list:"view-list", ab:"view-abiertas"};
@@ -896,6 +919,7 @@ async function bloquear(){
   initForm();
   await revisarAcceso();
   await cargar();
+  await soltarEnviadas();
   pintarTodo();
   if(hayServidor()) cargarAbiertas();
   $("#tab-form").onclick = verForm;
@@ -908,7 +932,6 @@ async function bloquear(){
   $("#btnCsv").onclick = csv;
   $("#btnBloquear").onclick = bloquear;
   $("#btnEnviar").onclick = enviarPendientes;
-  $("#btnLimpias").onclick = borrarEnviadas;
   $("#cfg_quien").onchange = async e => { state.quien = e.target.value.trim(); await guardarTodo(); };
   $("#cfg_srv").onchange = async e => { state.servidor = e.target.value.trim(); await guardarTodo(); pintarTodo(); };
   $("#cfg_dec").onchange = async e => { state.dec = e.target.value; await guardarTodo(); };

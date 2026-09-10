@@ -66,6 +66,17 @@
   th{text-align:left;font-size:12px;font-weight:600;color:var(--ink-2);padding:6px 8px;border-bottom:1px solid var(--line-2)}
   td{padding:7px 8px;border-bottom:1px solid var(--line-2)}
   td.n,th.n{text-align:right;white-space:nowrap}
+  .act{display:grid;grid-template-columns:1fr 120px;gap:12px;align-items:center;
+    padding:9px 0;border-bottom:1px solid var(--line-2)}
+  .act .eq{font-size:14px;font-weight:500}
+  .act .ac{font-size:12.5px;color:var(--ink-2);margin-top:1px}
+  .act .cifra{text-align:right;font-size:13px}
+  .act .cifra b{display:block;font-size:16px;font-weight:600}
+  .medidor{position:relative;height:9px;background:#EDEFEB;border-radius:5px;margin-top:6px;overflow:visible}
+  .medidor i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;display:block}
+  .medidor u{position:absolute;top:-3px;bottom:-3px;width:2px;background:#7A857F}
+  .leyenda{display:flex;gap:16px;font-size:12.5px;color:var(--ink-2);margin:4px 0 14px;flex-wrap:wrap}
+  .leyenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
   .cargando,.vacio{text-align:center;color:var(--ink-2);padding:50px 16px}
 
   [data-bolsa]{cursor:pointer}
@@ -145,6 +156,7 @@
   <div class="ctrl" style="margin:14px 0 0">
     <button class="btn" id="v_resumen" aria-pressed="true">Resumen</button>
     <button class="btn" id="v_indic" aria-pressed="false">Indicadores</button>
+    <button class="btn" id="v_prev" aria-pressed="false">Preventivo</button>
   </div>
   <div id="cuerpo"><div class="cargando">Cargando…</div></div>
 </main>
@@ -616,6 +628,94 @@ function pintarIndicadores(){
       meses y equipos entre sí, no para reportar a una norma.</p>`;
 }
 
+/* ---------- preventivo ---------- */
+let alertas = null, filtroAlerta = "";
+
+async function traerAlertas(){
+  try{
+    const r = await fetch(SERVIDOR + "/alertas?k=" + encodeURIComponent(CLAVE_SERVIDOR));
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error || "error " + r.status);
+    alertas = d;
+  }catch(e){ alertas = {error: e.message}; }
+  if(vista === "prev") pintar();
+}
+
+function pintarPreventivo(){
+  if(!alertas){ $("#cuerpo").innerHTML = `<div class="cargando">Consultando el plan…</div>`;
+    traerAlertas(); return; }
+  if(alertas.error){ $("#cuerpo").innerHTML =
+    `<div class="vacio">No se pudo consultar el plan.<br><br>${alertas.error}</div>`; return; }
+  if(!alertas.alertas || !alertas.alertas.length){ $("#cuerpo").innerHTML =
+    `<div class="vacio">Todavía no hay plan preventivo cargado.<br><br>
+     Se carga desde el panel, en la pestaña Preventivo.</div>`; return; }
+
+  const col = e => e === "vencido" ? "var(--alerta)" : e === "proximo" ? "#D99000" : "var(--ok)";
+  const lista = alertas.alertas.filter(f => !filtroAlerta || f.estado === filtroAlerta);
+
+  const fila = f => {
+    const p = f.uso === null ? 0 : Math.min(f.uso, 1.6);
+    const restan = f.uso === null ? null : Math.round(f.frecuencia - f.horas);
+    const ord = todas.filter(o => (o.equipo||"").trim() === f.equipo);
+    return `<div class="act"${marca(ord, f.equipo)}>
+      <div>
+        <div class="eq">${f.equipo}<span class="lupa">ver órdenes</span></div>
+        <div class="ac">${f.actividad}</div>
+        <div class="medidor">
+          <i style="width:${Math.min(p/1.6*100,100)}%;background:${col(f.estado)}"></i>
+          <u style="left:${100/1.6}%" title="frecuencia: ${f.frecuencia} h"></u>
+        </div>
+      </div>
+      <div class="cifra">
+        <b style="color:${col(f.estado)}">${f.uso === null ? "—" : Math.round(f.uso*100) + "%"}</b>
+        ${f.uso === null ? "sin lectura"
+          : restan > 0 ? "faltan " + ni(restan) + " h"
+          : "excedido en " + ni(-restan) + " h"}
+      </div></div>`;
+  };
+
+  const bot = (v, t, n) => `<button class="btn" data-fal="${v}" aria-pressed="${filtroAlerta===v}">${t} (${n})</button>`;
+
+  $("#cuerpo").innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="n" style="color:var(--alerta)">${alertas.vencidas}</div>
+        <div class="t">Vencidas</div><div class="p">ya pasaron la frecuencia</div></div>
+      <div class="kpi"><div class="n" style="color:#D99000">${alertas.proximas}</div>
+        <div class="t">Próximas</div><div class="p">del 80% de la frecuencia en adelante</div></div>
+      <div class="kpi"><div class="n" style="color:var(--ok)">${alertas.en_condiciones}</div>
+        <div class="t">En condiciones</div><div class="p">sin novedad por ahora</div></div>
+      <div class="kpi"><div class="n">${alertas.sin_lectura}</div>
+        <div class="t">Sin lectura</div><div class="p">falta el horómetro del equipo</div></div>
+    </div>
+
+    <div class="caja ancha">
+      <div class="ctrl" style="margin:0 0 10px">
+        ${bot("", "Todas", alertas.alertas.length)}
+        ${bot("vencido", "Vencidas", alertas.vencidas)}
+        ${bot("proximo", "Próximas", alertas.proximas)}
+        ${bot("en condiciones", "En condiciones", alertas.en_condiciones)}
+        <span class="sep" style="flex:1"></span>
+        <span class="et">Horómetros al ${alertas.actualizado || "—"}</span>
+      </div>
+      <div class="leyenda">
+        <span><i style="background:var(--ok)"></i>en condiciones</span>
+        <span><i style="background:#D99000"></i>próxima</span>
+        <span><i style="background:var(--alerta)"></i>vencida</span>
+        <span><i style="background:#7A857F;width:2px;height:12px"></i>la marca gris es el 100% de la frecuencia</span>
+      </div>
+      ${lista.length ? lista.map(fila).join("") : `<div class="vacio">Nada en este grupo.</div>`}
+    </div>
+
+    <p style="font-size:12.5px;color:var(--ink-2);margin:16px 0 0">
+      El porcentaje es lo que lleva trabajando el equipo desde su último mantenimiento,
+      dividido por la frecuencia de esa actividad. Al llegar al 100% el servicio crea la
+      orden solo; cuando se marca lista, el contador vuelve a cero.</p>`;
+
+  document.querySelectorAll("[data-fal]").forEach(b => b.onclick = () => {
+    filtroAlerta = b.dataset.fal; pintar();
+  });
+}
+
 /* ---------- pintado ---------- */
 let vista = "resumen";
 function pintar(){
@@ -623,7 +723,9 @@ function pintar(){
   $("#periodo").textContent = desde
     ? `${desde.toLocaleDateString("es-CO")} a ${hasta.toLocaleDateString("es-CO")}`
     : "histórico completo";
-  if(vista === "indic"){ pintarIndicadores(); } else { pintarResumen(); }
+  if(vista === "indic") pintarIndicadores();
+  else if(vista === "prev") pintarPreventivo();
+  else pintarResumen();
   enlazarBolsas();
 }
 
@@ -740,14 +842,18 @@ function arrancar(){
     pintar();
   };
   $("#f_desde").onchange = manual; $("#f_hasta").onchange = manual;
-  $("#btnRecargar").onclick = traer;
+  $("#btnRecargar").onclick = () => { alertas = null; traer(); if(vista === "prev") traerAlertas(); };
   $("#modalCerrar").onclick = cerrarModal;
   $("#modal").onclick = e => { if(e.target.id === "modal") cerrarModal(); };
   document.addEventListener("keydown", e => { if(e.key === "Escape") cerrarModal(); });
-  $("#v_resumen").onclick = () => { vista = "resumen";
-    $("#v_resumen").setAttribute("aria-pressed","true"); $("#v_indic").setAttribute("aria-pressed","false"); pintar(); };
-  $("#v_indic").onclick = () => { vista = "indic";
-    $("#v_resumen").setAttribute("aria-pressed","false"); $("#v_indic").setAttribute("aria-pressed","true"); pintar(); };
+  $("#v_resumen").onclick = () => { vista = "resumen"; marcarVista(); pintar(); };
+  const marcarVista = () => {
+    $("#v_resumen").setAttribute("aria-pressed", String(vista === "resumen"));
+    $("#v_indic").setAttribute("aria-pressed", String(vista === "indic"));
+    $("#v_prev").setAttribute("aria-pressed", String(vista === "prev"));
+  };
+  $("#v_indic").onclick = () => { vista = "indic"; marcarVista(); pintar(); };
+  $("#v_prev").onclick = () => { vista = "prev"; marcarVista(); pintar(); if(!alertas) traerAlertas(); };
   $("#btnExpPeriodo").onclick = () => {
     const lista = todas.filter(enRango).sort((a,b) => a.ot - b.ot);
     const etiqueta = desde ? `${iso(desde)}_a_${iso(hasta)}` : "historico";

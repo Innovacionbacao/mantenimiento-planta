@@ -1,0 +1,307 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Tablero de mantenimiento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#E7E9E4; --card:#FFFFFF; --ink:#141917; --ink-2:#5C6660;
+    --line:#CFD4CD; --line-2:#E4E7E2; --accent:#F0A202;
+    --verde:#24352F; --salvia:#5C7C71; --ok:#2C6E49; --alerta:#A62B1F;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:15px;line-height:1.45;font-feature-settings:"tnum" 1}
+  .wrap{max-width:980px;margin:0 auto;padding:0 16px 60px}
+  header{border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:10}
+  .hd{max-width:980px;margin:0 auto;padding:14px 16px;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+  .hd h1{font-size:18px;font-weight:600;margin:0}
+  .hd .sub{font-size:13px;color:var(--ink-2)}
+  .hd .der{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .btn{padding:8px 13px;border-radius:8px;border:1px solid var(--line);background:#fff;
+    font:inherit;font-size:13.5px;cursor:pointer}
+  .btn[aria-pressed="true"]{background:var(--verde);color:#fff;border-color:var(--verde)}
+
+  .filtros{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px;align-items:center}
+  .filtros .sep{flex:1}
+  .filtros input[type=date]{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13.5px}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .kpi .n{font-size:26px;font-weight:600;line-height:1.15}
+  .kpi .t{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+  .kpi .p{font-size:12px;color:var(--ink-2);margin-top:6px}
+
+  .rejilla{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:760px){ .rejilla{grid-template-columns:1fr} }
+  .caja{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:14px 0}
+  .caja h2{font-size:14px;font-weight:600;margin:0 0 12px}
+  .caja.ancha{grid-column:1 / -1}
+
+  .barra-fila{display:grid;grid-template-columns:1fr 46px;gap:10px;align-items:center;margin:7px 0;font-size:13.5px}
+  .barra-fila .et{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pista{height:8px;background:#EDEFEB;border-radius:5px;overflow:hidden;margin-top:4px}
+  .relleno{height:100%;background:var(--verde);border-radius:5px}
+  .relleno.s{background:var(--salvia)}
+  .relleno.a{background:var(--accent)}
+  .val{text-align:right;color:var(--ink-2);font-size:12.5px}
+
+  .meses{display:flex;align-items:flex-end;gap:4px;height:150px;margin-top:6px}
+  .mes{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;min-width:0}
+  .mes .col{width:100%;background:var(--verde);border-radius:3px 3px 0 0;min-height:2px}
+  .mes .lb{font-size:10.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden}
+  .mes .vv{font-size:10.5px;color:var(--ink-2)}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;font-size:12px;font-weight:600;color:var(--ink-2);padding:6px 8px;border-bottom:1px solid var(--line-2)}
+  td{padding:7px 8px;border-bottom:1px solid var(--line-2)}
+  td.n,th.n{text-align:right;white-space:nowrap}
+  .cargando,.vacio{text-align:center;color:var(--ink-2);padding:50px 16px}
+
+  body.bloqueado>header,body.bloqueado>main{display:none}
+  .puerta{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;align-items:center;justify-content:center;padding:24px}
+  body.bloqueado .puerta{display:flex}
+  .puerta .caja2{width:100%;max-width:320px;text-align:center}
+  .puerta h2{font-size:19px;margin:0 0 6px}
+  .puerta p{color:var(--ink-2);font-size:14px;margin:0 0 20px}
+  .puerta input{width:100%;text-align:center;font-size:26px;letter-spacing:.4em;padding:14px;
+    border:1px solid var(--line);border-radius:10px}
+  .puerta .btn{width:100%;margin-top:12px;padding:13px;background:var(--accent);border-color:#D18F00;font-weight:600}
+  .aviso{min-height:20px;margin-top:10px;font-size:13.5px;color:var(--alerta)}
+</style>
+
+<div class="puerta" id="puerta">
+  <div class="caja2">
+    <h2>Tablero de mantenimiento</h2>
+    <p>Escribe el código para entrar</p>
+    <input type="password" id="pin" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="······">
+    <button class="btn" id="btnEntrar" type="button">Entrar</button>
+    <div class="aviso" id="avisoPin"></div>
+  </div>
+</div>
+
+<header>
+  <div class="hd">
+    <h1>Tablero de mantenimiento</h1>
+    <span class="sub" id="periodo">—</span>
+    <div class="der">
+      <span class="sub" id="sello"></span>
+      <button class="btn" id="btnRecargar" type="button">Actualizar</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="filtros" id="filtros">
+    <button class="btn" data-rango="30">Últimos 30 días</button>
+    <button class="btn" data-rango="90">Últimos 3 meses</button>
+    <button class="btn" data-rango="365">Últimos 12 meses</button>
+    <button class="btn" data-rango="0">Todo</button>
+    <span class="sep"></span>
+    <input type="date" id="f_desde"><input type="date" id="f_hasta">
+  </div>
+  <div id="cuerpo"><div class="cargando">Cargando…</div></div>
+</main>
+
+<script>
+const SERVIDOR = "https://ordenes-bacao.mgereda.workers.dev";
+const CLAVE_SERVIDOR = "2MWpGyZcdUQqMTSgiHXAo5gx";
+const PIN_HASH = 3821502243;
+const KEY_ACC = "bacao:acceso:v1";
+
+const $ = s => document.querySelector(s);
+let todas = [], desde = null, hasta = null, rangoActivo = 365;
+
+function hash(s){ let x=5381; for(const c of s) x=((x*33)^c.charCodeAt(0))>>>0; return x; }
+const nf = n => (Math.round(n*10)/10).toLocaleString("es-CO");
+const ni = n => Math.round(n).toLocaleString("es-CO");
+const MES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+
+function aFecha(s){
+  if(!s) return null;
+  const p = String(s).split("/");
+  if(p.length !== 3) return null;
+  const d = new Date(+p[2], +p[1]-1, +p[0]);
+  return isNaN(d) ? null : d;
+}
+const numero = v => {
+  if(v === "" || v == null) return 0;
+  const n = parseFloat(String(v).replace(",", "."));
+  return isNaN(n) ? 0 : n;
+};
+const iso = d => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+
+/* ---------- acceso ---------- */
+function acceso(){
+  let ok = false; try{ ok = localStorage.getItem(KEY_ACC) === "1"; }catch(e){}
+  if(ok) return true;
+  document.body.classList.add("bloqueado");
+  const inp = $("#pin");
+  const probar = () => {
+    if(hash(inp.value.trim()) === PIN_HASH){
+      try{ localStorage.setItem(KEY_ACC,"1"); }catch(e){}
+      document.body.classList.remove("bloqueado"); arrancar();
+    }else{ $("#avisoPin").textContent = "Código incorrecto"; inp.value = ""; }
+  };
+  $("#btnEntrar").onclick = probar;
+  inp.onkeydown = e => { if(e.key === "Enter") probar(); };
+  setTimeout(()=>inp.focus(), 100);
+  return false;
+}
+
+/* ---------- datos ---------- */
+async function traer(){
+  $("#cuerpo").innerHTML = `<div class="cargando">Cargando…</div>`;
+  try{
+    const r = await fetch(SERVIDOR + "/registros?k=" + encodeURIComponent(CLAVE_SERVIDOR) + "&estado=todas");
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error || "error " + r.status);
+    todas = d.map(o => ({...o, _f: aFecha(o.fin) || aFecha(o.fecha), _h: numero(o.tiempo)}));
+    $("#sello").textContent = "al " + new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"});
+    pintar();
+  }catch(e){
+    $("#cuerpo").innerHTML = `<div class="vacio">No se pudo conectar con el servicio.<br><br>${e.message}</div>`;
+  }
+}
+
+function enRango(o){
+  if(!o._f) return false;
+  if(desde && o._f < desde) return false;
+  if(hasta && o._f > hasta) return false;
+  return true;
+}
+
+/* ---------- piezas visuales ---------- */
+function barras(datos, clase, formato = nf){
+  const max = Math.max(...datos.map(d => d[1]), 1);
+  return datos.map(([et, v]) => `
+    <div>
+      <div class="barra-fila"><span class="et">${et}</span><span class="val">${formato(v)}</span></div>
+      <div class="pista"><div class="relleno ${clase}" style="width:${Math.max(2, v/max*100)}%"></div></div>
+    </div>`).join("");
+}
+
+function porMes(lista){
+  const cuenta = new Map();
+  lista.forEach(o => {
+    const k = o._f.getFullYear() + "-" + String(o._f.getMonth()+1).padStart(2,"0");
+    cuenta.set(k, (cuenta.get(k)||0) + 1);
+  });
+  const claves = [...cuenta.keys()].sort().slice(-12);
+  const max = Math.max(...claves.map(k => cuenta.get(k)), 1);
+  return `<div class="meses">${claves.map(k => {
+    const [a,m] = k.split("-");
+    const v = cuenta.get(k);
+    return `<div class="mes"><span class="vv">${v}</span>
+      <div class="col" style="height:${v/max*105}px"></div>
+      <span class="lb">${MES[+m-1]}${m==="01"?" "+a.slice(2):""}</span></div>`;
+  }).join("")}</div>`;
+}
+
+function agrupar(lista, campo, valor){
+  const m = new Map();
+  lista.forEach(o => {
+    const k = (o[campo] || "sin dato").trim() || "sin dato";
+    m.set(k, (m.get(k)||0) + (valor ? valor(o) : 1));
+  });
+  return [...m.entries()].filter(x => x[1] > 0).sort((a,b) => b[1]-a[1]);
+}
+
+/* ---------- pintado ---------- */
+function pintar(){
+  const lista = todas.filter(enRango);
+  const abiertas = todas.filter(o => o.lista === false && !o.consolidado).length;
+  const horas = lista.reduce((s,o) => s + o._h, 0);
+  const prev = lista.filter(o => (o.interv||"").toLowerCase().includes("preventivo"))
+                    .reduce((s,o) => s + o._h, 0);
+  const corr = lista.filter(o => (o.interv||"").toLowerCase().includes("correctivo"))
+                    .reduce((s,o) => s + o._h, 0);
+  const conHoras = lista.filter(o => o._h > 0).length;
+
+  $("#periodo").textContent = desde
+    ? `${desde.toLocaleDateString("es-CO")} a ${hasta.toLocaleDateString("es-CO")}`
+    : "histórico completo";
+
+  if(!lista.length){
+    $("#cuerpo").innerHTML = `<div class="vacio">No hay órdenes en este período.</div>`;
+    return;
+  }
+
+  const equipos = agrupar(lista, "equipo", o => o._h).slice(0,10);
+  const areas = agrupar(lista, "area", o => o._h).slice(0,8);
+  const tipos = agrupar(lista, "interv", o => o._h);
+  const estados = agrupar(lista, "estado");
+  const personas = agrupar(lista, "capturado_por");
+
+  $("#cuerpo").innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="n">${ni(lista.length)}</div><div class="t">Órdenes</div>
+        <div class="p">${conHoras} con horas registradas</div></div>
+      <div class="kpi"><div class="n">${nf(horas)}</div><div class="t">Horas de mantenimiento</div>
+        <div class="p">${nf(horas/Math.max(conHoras,1))} h por orden</div></div>
+      <div class="kpi"><div class="n">${horas ? Math.round(prev/horas*100) : 0}%</div>
+        <div class="t">Horas en preventivo</div>
+        <div class="p">${Math.round(corr/Math.max(horas,1)*100)}% en correctivo</div></div>
+      <div class="kpi"><div class="n">${abiertas}</div><div class="t">Abiertas ahora</div>
+        <div class="p">trabajos sin terminar</div></div>
+    </div>
+
+    <div class="caja"><h2>Órdenes por mes</h2>${porMes(lista)}</div>
+
+    <div class="rejilla">
+      <div class="caja"><h2>Horas por tipo de intervención</h2>${barras(tipos,"")}</div>
+      <div class="caja"><h2>Órdenes por estado</h2>${barras(estados,"a",ni)}</div>
+      <div class="caja"><h2>Los 10 equipos con más horas</h2>${barras(equipos,"s")}</div>
+      <div class="caja"><h2>Horas por área</h2>${barras(areas,"s")}</div>
+    </div>
+
+    <div class="caja"><h2>Últimas órdenes registradas</h2>
+      <table><thead><tr><th class="n">OT</th><th>Fecha</th><th>Equipo</th>
+        <th>Intervención</th><th>Estado</th><th class="n">Horas</th></tr></thead>
+        <tbody>${lista.slice().sort((a,b)=>b.ot-a.ot).slice(0,12).map(o=>`
+          <tr><td class="n">${o.ot}</td><td>${o.fecha||""}</td><td>${o.equipo||""}</td>
+          <td>${o.interv||""}</td><td>${o.estado||""}</td><td class="n">${o._h?nf(o._h):""}</td></tr>`).join("")}
+        </tbody></table></div>
+
+    ${personas.length > 1 ? `<div class="caja"><h2>Quién registró</h2>${barras(personas,"a",ni)}</div>` : ""}
+
+    <p style="font-size:12.5px;color:var(--ink-2);margin:16px 0 0">
+      Las órdenes se ubican en el tiempo por su fecha de finalización, y si no la tienen,
+      por la de creación. Las horas salen del campo de duración: ${lista.length - conHoras}
+      de estas órdenes no lo tienen y por eso suman cero.</p>`;
+}
+
+/* ---------- filtros ---------- */
+function aplicarRango(dias){
+  rangoActivo = dias;
+  if(dias === 0){ desde = null; hasta = null; $("#f_desde").value = ""; $("#f_hasta").value = ""; }
+  else{
+    hasta = new Date(); hasta.setHours(23,59,59);
+    desde = new Date(); desde.setDate(desde.getDate() - dias); desde.setHours(0,0,0);
+    $("#f_desde").value = iso(desde); $("#f_hasta").value = iso(hasta);
+  }
+  document.querySelectorAll("[data-rango]").forEach(b =>
+    b.setAttribute("aria-pressed", String(+b.dataset.rango === dias)));
+  pintar();
+}
+
+function arrancar(){
+  document.querySelectorAll("[data-rango]").forEach(b =>
+    b.onclick = () => aplicarRango(+b.dataset.rango));
+  const manual = () => {
+    const d = $("#f_desde").value, h = $("#f_hasta").value;
+    desde = d ? new Date(d + "T00:00:00") : null;
+    hasta = h ? new Date(h + "T23:59:59") : null;
+    document.querySelectorAll("[data-rango]").forEach(b => b.setAttribute("aria-pressed","false"));
+    pintar();
+  };
+  $("#f_desde").onchange = manual; $("#f_hasta").onchange = manual;
+  $("#btnRecargar").onclick = traer;
+  aplicarRango(365);
+  traer();
+}
+
+if(acceso()) arrancar();
+</script>

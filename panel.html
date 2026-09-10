@@ -94,6 +94,7 @@
     <button class="tab" id="tabPend" role="tab" aria-selected="true">Por consolidar</button>
     <button class="tab" id="tabAb" role="tab" aria-selected="false">En curso</button>
     <button class="tab" id="tabPap" role="tab" aria-selected="false">Papelera</button>
+    <button class="tab" id="tabCat" role="tab" aria-selected="false">Catálogo</button>
     <button class="tab" id="tabConf" role="tab" aria-selected="false">Ajustes</button>
   </div>
 </header>
@@ -123,6 +124,7 @@
 const SERVIDOR = "https://ordenes-bacao.mgereda.workers.dev";
 const CLAVE_SERVIDOR = "2MWpGyZcdUQqMTSgiHXAo5gx";
 
+const SEMILLA = {"equipos": [{"e": "Banda de rodillos corte mazorca 1", "a": "Recepción de mazorca"}, {"e": "Banda de rodillos corte mazorca 2", "a": "Recepción de mazorca"}, {"e": "Banda de separación de cacao fresco 1 Color verde", "a": "Recepción de mazorca"}, {"e": "Banda de separación de cacao fresco 2 Color blanco", "a": "Recepción de mazorca"}, {"e": "Trasportador trituradora de cascara flexible", "a": "Recepción de mazorca"}, {"e": "Tolva y sinfín inclinado alimentador a tolva 1", "a": "Recepción de fruto fresco"}, {"e": "Banda de mazorca INALRED", "a": "Recepción de mazorca"}, {"e": "Quebradora de mazorca pinhalense", "a": "Recepción de mazorca"}, {"e": "Banda de cascara de mazorca INALRED", "a": "Recepción de mazorca"}, {"e": "Sinfín de fruto fresco con inclinacion automatica", "a": "Recepción de fruto fresco"}, {"e": "Tolva y sinfín a centriflux 1", "a": "Recepción de fruto fresco"}, {"e": "Tolva y sinfín a centriflux 2", "a": "Recepción de fruto fresco"}, {"e": "Bomba de mucilago", "a": "Recepción de fruto fresco"}, {"e": "Bomba de CIP y línea de tubería", "a": "Recepción de fruto fresco"}, {"e": "Centriflux 1", "a": "Recepción de fruto fresco"}, {"e": "Centriflux 2", "a": "Recepción de fruto fresco"}, {"e": "Tolva de mucilago", "a": "Recepción de fruto fresco"}, {"e": "Batería de cajones anaeróbicos 1", "a": "Fermentación anaeróbica"}, {"e": "Batería de cajones anaeróbicos 2", "a": "Fermentación anaeróbica"}, {"e": "Cajones con rodachines", "a": "Fermentación aeróbica"}, {"e": "Transpaleta electrohidráulica o manual", "a": "Presecado mecánico"}, {"e": "Volteadora de cajones 1", "a": "Presecado mecánico"}, {"e": "Volteadora de cajones 2", "a": "Presecado mecánico"}, {"e": "Presecadora 1", "a": "Presecado mecánico"}, {"e": "Presecadora 2", "a": "Presecado mecánico"}, {"e": "Presecadora 3", "a": "Presecado mecánico"}, {"e": "Presecadora 4", "a": "Presecado mecánico"}, {"e": "Banda modular a presecadoras 1 y 2", "a": "Presecado mecánico"}, {"e": "Transportador sinfín a presecadoras 3 y 4", "a": "Presecado mecánico"}, {"e": "Banda salida de presecadoras 1-2-3-4", "a": "Presecado mecánico"}, {"e": "Presecadora cuadrada pequeña", "a": "Presecado mecánico"}, {"e": "Banda modular de cacao preseco a tolva", "a": "Presecado mecánico"}, {"e": "Diverter y tolva de cacao preseco", "a": "Secado mecánico"}, {"e": "Diverter y banda modular a secadoras línea 1 (Secadores 1 y 2)", "a": "Secado mecánico"}, {"e": "Diverter y banda modular a secadoras línea 2 (Secadores 3 y 4)", "a": "Secado mecánico"}, {"e": "Secador multinivel 1", "a": "Secado mecánico"}, {"e": "Secador multinivel 2", "a": "Secado mecánico"}, {"e": "Secador multinivel 3", "a": "Secado mecánico"}, {"e": "Secador multinivel 4", "a": "Secado mecánico"}, {"e": "Banda modular de cacao seco línea 1 (Secadores 1 y 2)", "a": "Secado mecánico"}, {"e": "Banda modular de cacao seco línea 2 (Secadores 3 y 4)", "a": "Secado mecánico"}, {"e": "Banda trasversal de cacao seco línea 3", "a": "Bodega almacenamiento"}, {"e": "Prelimpiadora de cacao seco", "a": "Bodega almacenamiento"}, {"e": "Banda verde 1 de grano seco a tolva", "a": "Bodega almacenamiento"}, {"e": "Banda verde 2 de grano seco a tolva", "a": "Bodega almacenamiento"}, {"e": "Tolva de cacao seco", "a": "Bodega almacenamiento"}, {"e": "Ensacadora Imaquin", "a": "Bodega almacenamiento"}, {"e": "Levantador vertical de sacos", "a": "Bodega almacenamiento"}, {"e": "Banda horizontal de sacos (Recibo de ensacadora)", "a": "Bodega almacenamiento"}, {"e": "Banda de cargue con inclinación automática.", "a": "Bodega almacenamiento"}, {"e": "Banda de cargue con inclinación manual.", "a": "Bodega almacenamiento"}, {"e": "Cosedora industrial de sacos 1", "a": "Bodega almacenamiento"}, {"e": "Cosedora industrial de sacos 2", "a": "Bodega almacenamiento"}, {"e": "Marmita de 250 litros", "a": "Laboratorio de pulpa"}, {"e": "Filtro mecánico", "a": "Laboratorio de pulpa"}, {"e": "Hydroflow", "a": "Laboratorio de pulpa"}, {"e": "Lavador de mazorcas", "a": "Laboratorio de pulpa"}, {"e": "Compresor de tornillo neumático", "a": "Servicios industriales"}, {"e": "Generador CAT C7.1", "a": "Servicios industriales"}, {"e": "Sistema piloto Biodigestores", "a": "Servicios industriales"}, {"e": "Bioreactor prototipo de fermentación de 2 ton", "a": "Fermentación anaeróbica"}, {"e": "Etapa 1 (Recepción)", "a": "Recepción de fruto fresco"}, {"e": "Etapa 2 (Presecado mecánico)", "a": "Presecado mecánico"}, {"e": "Etapa 3 (Secado mecánico)", "a": "Secado mecánico"}, {"e": "Etapa 4 (Bodega almacenamiento)", "a": "Bodega almacenamiento"}, {"e": "Infraestructura", "a": "Postcosecha"}, {"e": "Red de iluminación electrica", "a": "Postcosecha"}, {"e": "Red de potencia principal", "a": "Postcosecha"}, {"e": "Oficina de grano seco", "a": "Laboratorio de grano seco"}, {"e": "Laboratorio de pulpa", "a": "Laboratorio de pulpa"}, {"e": "Cilindro limpiador de cacao seco", "a": "Almacenamiento"}, {"e": "Clasificadora neumática de NIPS y FINOS", "a": "Almacenamiento"}, {"e": "Biodigestor", "a": "Servicios industriales"}, {"e": "Bomba de tanque de mezcla", "a": "Servicios industriales"}, {"e": "Bomba de tanque de recircularción", "a": "Servicios industriales"}, {"e": "Bascula", "a": "Pesaje"}, {"e": "Implemento giratorio del montacargas", "a": "Postcosecha"}, {"e": "Montacargas", "a": "Postcosecha"}, {"e": "Cosedora industrial de sacos", "a": "Bodega almacenamiento"}], "tipos_trabajo": ["Ajuste a platinas tensoras y/o chumaceras tensoras", "Ajuste de dampers", "Ajuste de esparragos, reforzar malla, arreglar compuertas de piso o cambio de banda de lona", "Ajuste y/o cambio de helice o eje", "Arreglo de carretillas", "Calibración (Ensacadora)", "Cambio de accesorios en PVC", "Cambio de agujas, cambio de correas, ajuste de tornillos", "Cambio de banda y/o tensionar banda", "Cambio de bateria", "Cambio de bujes", "Cambio de ductos del horno", "Cambio de eje secadoras circulares", "Cambio de elastomero de acople araña", "Cambio de empaques, thermofilm, thermolon", "Cambio de filtros, aceite y/o refrigerante", "Cambio de madera, tornillos y/o ruedas", "Cambio de manguera flexible o ajuste", "Cambio de manguera hidraulico", "Cambio de motor, reductor o moto-reductor", "Cambio de piezas (Banda modular)", "Cambio de rodamientos y/o retenedores", "Cambio de termocupla", "Cambio de tornillos, tuercas, arandelas, wasas, remaches", "Cambio de ventilador avivador del horno", "Cambio motor eléctrico", "Cambio y/o ajuste de correa, piñones, poleas, cadenas, prisioneros, cuñas", "Corregir sentido de giro de plateas agitadoras", "Descargue de equipos en planta", "Energizar tablero eléctrico", "Engrase de chumaceras y rodamientos", "Fabricación, montaje o translado", "Grateado y pintado", "Inspeccion general nivel de aceite y refrigerante", "Instalacion y/o ajuste eléctrico", "Instalación de accesorios y tuberia", "Instalación y/o ajuste mecánico", "Limpieza", "Limpieza de aire acondicionado", "Limpieza de radiador planta CAT", "Pruebas nivel de llenado, sistema de bombeo y tuberia", "Reforzar estructura del equipo", "Reparación o desmontaje"], "proveedores": ["Soinka", "Bacao S.A.S", "Iluv", "Madeconfort", "Fimar", "Droma", "Toyota"], "intervencion": ["Correctivo mecánico", "Correctivo eléctrico", "Preventivo mecánico", "Preventivo eléctrico", "Mejora mecánica", "Mejora eléctrica"]};
 const PIN_HASH = 3821502243;
 const KEY_ACC = "bacao:acceso:v1";
 const KEY_CFG = "bacao:panel:v1";
@@ -189,6 +191,7 @@ function fmt(r){
 function pintar(){
   const v = $("#vista");
   if(pestana==="conf"){ pintarAjustes(); return; }
+  if(pestana==="cat"){ pintarCatalogo(); return; }
   if(!datos.length){
     v.innerHTML = `<div class="vacio">${pestana==="pend"
       ? "No hay órdenes por consolidar. Todo lo capturado ya pasó al Excel."
@@ -237,6 +240,70 @@ function actualizarCuenta(){
     });
 }
 
+function texto(lista){ return lista.join("\n"); }
+function lineas(txt){ return txt.split("\n").map(x=>x.trim()).filter(Boolean); }
+
+async function pintarCatalogo(){
+  $("#barra").style.display = "none";
+  $("#vista").innerHTML = `<div class="cargando">Cargando catálogo…</div>`;
+  let cat;
+  try{
+    cat = await pedir("/catalogo");
+    if(!cat || !cat.equipos || !cat.equipos.length) cat = SEMILLA;
+  }catch(e){ cat = SEMILLA; }
+
+  $("#vista").innerHTML = `<div class="ajustes">
+    <p style="margin:0 0 14px;font-size:13.5px;color:var(--ink-2)">
+      Esto es lo que ven los desplegables del celular. Un renglón por elemento.
+      En los equipos, el área va después de una barra vertical: <b>Equipo | Área</b>.
+      Al guardar, los celulares lo toman la próxima vez que abran con señal.</p>
+
+    <label for="c_eq">Equipos y su área (${cat.equipos.length})</label>
+    <textarea id="c_eq" rows="12" style="width:100%;font-family:ui-monospace,monospace;font-size:12.5px;
+      padding:10px;border:1px solid var(--line);border-radius:8px">${
+      cat.equipos.map(e=>`${e.e} | ${e.a||""}`).join("\n")}</textarea>
+
+    <label for="c_tt">Tipos de trabajo (${(cat.tipos_trabajo||[]).length})</label>
+    <textarea id="c_tt" rows="8" style="width:100%;font-family:ui-monospace,monospace;font-size:12.5px;
+      padding:10px;border:1px solid var(--line);border-radius:8px">${texto(cat.tipos_trabajo||[])}</textarea>
+
+    <label for="c_pr">Proveedores (${(cat.proveedores||[]).length})</label>
+    <textarea id="c_pr" rows="5" style="width:100%;font-family:ui-monospace,monospace;font-size:12.5px;
+      padding:10px;border:1px solid var(--line);border-radius:8px">${texto(cat.proveedores||[])}</textarea>
+
+    <label for="c_in">Tipos de intervención (${(cat.intervencion||[]).length})</label>
+    <textarea id="c_in" rows="5" style="width:100%;font-family:ui-monospace,monospace;font-size:12.5px;
+      padding:10px;border:1px solid var(--line);border-radius:8px">${texto(cat.intervencion||[])}</textarea>
+
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn main" id="btnCatGuardar" type="button">Guardar catálogo</button>
+      <button class="btn" id="btnCatRecargar" type="button">Descartar cambios</button>
+    </div>
+  </div>
+  <div class="nota">Cuidado al renombrar un equipo: las órdenes viejas conservan el nombre
+    anterior, así que en el Excel te van a quedar dos nombres para la misma máquina.
+    Agregar es seguro; renombrar conviene hacerlo solo si de verdad hace falta.</div>`;
+
+  $("#btnCatRecargar").onclick = pintarCatalogo;
+  $("#btnCatGuardar").onclick = async () => {
+    const equipos = lineas($("#c_eq").value).map(l => {
+      const [e, a] = l.split("|");
+      return { e: (e||"").trim(), a: (a||"").trim() };
+    }).filter(x => x.e);
+    if(!equipos.length){ toast("Tiene que quedar al menos un equipo"); return; }
+    const cuerpo = { equipos, tipos_trabajo: lineas($("#c_tt").value),
+                     proveedores: lineas($("#c_pr").value), intervencion: lineas($("#c_in").value) };
+    if(!confirm(`¿Guardar el catálogo con ${equipos.length} equipos, ${cuerpo.tipos_trabajo.length} tipos de trabajo y ${cuerpo.proveedores.length} proveedores?`)) return;
+    try{
+      const r = await fetch(url("/catalogo"), { method:"POST",
+        headers:{"Content-Type":"application/json"}, body: JSON.stringify(cuerpo) });
+      const d = await r.json();
+      if(!r.ok || !d.ok) throw new Error(d.error || "error " + r.status);
+      toast("Catálogo guardado: " + d.equipos + " equipos");
+    }catch(e){ toast(e.message); }
+  };
+}
+
 function pintarAjustes(){
   $("#barra").style.display = "none";
   $("#vista").innerHTML = `<div class="ajustes">
@@ -262,11 +329,61 @@ function pintarAjustes(){
     <p style="font-size:13px;color:var(--ink-2);margin-top:14px">
       Si tu Excel está en español, deja la coma. Con punto, los decimales entran como texto.</p>
   </div>
+
+  <div class="ajustes">
+    <label>Cargar el histórico del Excel</label>
+    <p style="font-size:13px;color:var(--ink-2);margin:4px 0 10px">
+      Sube el archivo historico-ordenes.json una sola vez. Las órdenes entran ya consolidadas,
+      así que no aparecen en Por consolidar; sirven para el histórico y las estadísticas.
+      Si lo repites, las que ya estén se omiten: no se duplica nada.</p>
+    <input type="file" id="a_hist" accept=".json,application/json">
+    <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
+      <button class="btn main" id="btnHist" type="button" disabled>Cargar histórico</button>
+      <span id="progHist" style="font-size:13px;color:var(--ink-2)"></span>
+    </div>
+  </div>
   <div class="nota">El panel no guarda órdenes: todo vive en el servicio. Puedes abrirlo
     desde cualquier computador o celular con el código de acceso.</div>`;
   $("#a_srv").onchange = e => { cfg.servidor = e.target.value.trim(); guardarCfg(); cargar(); };
   $("#a_dec").onchange = e => { cfg.dec = e.target.value; guardarCfg(); };
   $("#a_sinot").onchange = e => { cfg.sinOt = e.target.value === "si"; guardarCfg(); };
+
+  let archivoHist = null;
+  $("#a_hist").onchange = e => {
+    archivoHist = e.target.files[0] || null;
+    $("#btnHist").disabled = !archivoHist;
+    $("#progHist").textContent = archivoHist ? archivoHist.name : "";
+  };
+  $("#btnHist").onclick = async () => {
+    if(!archivoHist) return;
+    let lote;
+    try{
+      const txt = await archivoHist.text();
+      const d = JSON.parse(txt);
+      lote = Array.isArray(d) ? d : d.ordenes;
+      if(!Array.isArray(lote) || !lote.length) throw new Error("el archivo no trae órdenes");
+    }catch(err){ toast("No se pudo leer: " + err.message); return; }
+    if(!confirm(`¿Cargar ${lote.length} órdenes del histórico al servicio?`)) return;
+
+    const btn = $("#btnHist"); btn.disabled = true;
+    let guardadas = 0, omitidas = 0;
+    for(let i = 0; i < lote.length; i += 100){
+      $("#progHist").textContent = `Enviando ${Math.min(i+100, lote.length)} de ${lote.length}…`;
+      try{
+        const r = await fetch(url("/importar", "&confirmar=si"), { method:"POST",
+          headers:{"Content-Type":"application/json"}, body: JSON.stringify({ordenes: lote.slice(i, i+100)}) });
+        const d = await r.json();
+        if(!r.ok || !d.ok) throw new Error(d.error || "error " + r.status);
+        guardadas += d.guardadas; omitidas += d.omitidas;
+      }catch(err){
+        $("#progHist").textContent = "Se detuvo: " + err.message;
+        btn.disabled = false; return;
+      }
+    }
+    $("#progHist").textContent = `Listo: ${guardadas} cargadas, ${omitidas} ya estaban.`;
+    btn.disabled = false;
+    refrescarCuentas();
+  };
   pedir("/salud").then(s => { $("#a_cont").value = s.proxima_ot; }).catch(()=>{});
   $("#btnCont").onclick = async () => {
     const v = Number($("#a_cont").value);
@@ -318,6 +435,7 @@ async function accion(ruta, texto, pideConfirmar = true){
 /* ---------- carga ---------- */
 async function cargar(){
   if(pestana === "conf"){ pintarAjustes(); return; }
+  if(pestana === "cat"){ pintarCatalogo(); return; }
   $("#vista").innerHTML = `<div class="cargando">Cargando…</div>`;
   try{
     datos = pestana === "pend" ? await pedir("/registros")
@@ -338,6 +456,7 @@ function ir(p){
   $("#tabPend").setAttribute("aria-selected", p==="pend");
   $("#tabAb").setAttribute("aria-selected", p==="ab");
   $("#tabPap").setAttribute("aria-selected", p==="pap");
+  $("#tabCat").setAttribute("aria-selected", p==="cat");
   $("#tabConf").setAttribute("aria-selected", p==="conf");
   cargar();
 }
@@ -353,6 +472,7 @@ function arrancar(){
   $("#tabPend").onclick = () => ir("pend");
   $("#tabAb").onclick   = () => ir("ab");
   $("#tabPap").onclick  = () => ir("pap");
+  $("#tabCat").onclick  = () => ir("cat");
   $("#tabConf").onclick = () => ir("conf");
   $("#btnCopiar").onclick = copiar;
   $("#btnConsolidar").onclick = () => accion("/consolidar",

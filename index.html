@@ -149,6 +149,9 @@
 
   /* Pantalla de acceso */
   body.bloqueado>header,body.bloqueado>main,body.bloqueado>.savebar{display:none}
+  body.sinnombre>header,body.sinnombre>main,body.sinnombre>.savebar{display:none}
+  body.sinnombre .puerta#puertaQuien{display:flex}
+  .puerta#puertaQuien{display:none}
   .puerta{
     position:fixed;inset:0;z-index:80;background:var(--bg);display:none;
     align-items:center;justify-content:center;padding:24px
@@ -177,10 +180,27 @@
   </div>
 </div>
 
+<div class="puerta" id="puertaQuien">
+  <div class="caja">
+    <h2>¿Quién captura?</h2>
+    <p>Se guarda en este teléfono y va con cada orden. Solo se pregunta una vez.</p>
+    <input type="text" id="quienIni" autocomplete="name" placeholder="Nombre y apellido"
+           style="letter-spacing:normal;font-size:18px;text-align:center">
+    <button class="btn main" id="btnQuien" type="button">Continuar</button>
+    <div class="aviso" id="avisoQuien"></div>
+  </div>
+</div>
+
 <header>
   <div class="hd">
     <h1>Órdenes de mantenimiento</h1>
     <div class="ot">OT <b id="otnum">—</b></div>
+  </div>
+  <div style="max-width:520px;margin:0 auto;padding:0 14px 8px;font-size:12.5px;color:var(--ink-2)">
+    Captura: <b id="quienHdr" style="color:var(--ink);font-weight:500">—</b>
+    <button type="button" id="btnCambiarQuien"
+      style="background:none;border:0;color:var(--ink-2);font:inherit;font-size:12.5px;
+             text-decoration:underline;cursor:pointer;padding:0 0 0 6px">cambiar</button>
   </div>
   <div class="tabs" role="tablist">
     <button class="tab" id="tab-form" role="tab" aria-selected="true">Nueva orden</button>
@@ -355,7 +375,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const CAT = {"equipos": [{"e": "Banda de rodillos corte mazorca 1", "a": "Recepción de mazorca"}, {"e": "Banda de rodillos corte mazorca 2", "a": "Recepción de mazorca"}, {"e": "Banda de separación de cacao fresco 1 Color verde", "a": "Recepción de mazorca"}, {"e": "Banda de separación de cacao fresco 2 Color blanco", "a": "Recepción de mazorca"}, {"e": "Trasportador trituradora de cascara flexible", "a": "Recepción de mazorca"}, {"e": "Tolva y sinfín inclinado alimentador a tolva 1", "a": "Recepción de fruto fresco"}, {"e": "Banda de mazorca INALRED", "a": "Recepción de mazorca"}, {"e": "Quebradora de mazorca pinhalense", "a": "Recepción de mazorca"}, {"e": "Banda de cascara de mazorca INALRED", "a": "Recepcion de mazorca"}, {"e": "Sinfín de fruto fresco con inclinacion automatica", "a": "Recepción de fruto fresco"}, {"e": "Tolva y sinfín a centriflux 1", "a": "Recepción de fruto fresco"}, {"e": "Tolva y sinfín a centriflux 2", "a": "Recepción de fruto fresco"}, {"e": "Bomba de mucilago", "a": "Recepción de fruto fresco"}, {"e": "Bomba de CIP y línea de tubería", "a": "Recepción de fruto fresco"}, {"e": "Centriflux 1", "a": "Recepción de fruto fresco"}, {"e": "Centriflux 2", "a": "Recepción de fruto fresco"}, {"e": "Tolva de mucilago", "a": "Recepción de fruto fresco"}, {"e": "Batería de cajones anaeróbicos 1", "a": "fermentación anaeróbica"}, {"e": "Batería de cajones anaeróbicos 2", "a": "fermentación anaeróbica"}, {"e": "Cajones con rodachines", "a": "fermentación aérobica"}, {"e": "Transpaleta electrohidráulica o manual", "a": "Presecado mecánico"}, {"e": "Volteadora de cajones 1", "a": "Presecado mecánico"}, {"e": "Volteadora de cajones 2", "a": "Presecado mecánico"}, {"e": "Presecadora 1", "a": "Presecado mecánico"}, {"e": "Presecadora 2", "a": "Presecado mecánico"}, {"e": "Presecadora 3", "a": "Presecado mecánico"}, {"e": "Presecadora 4", "a": "Presecado mecánico"}, {"e": "Banda modular a presecadoras 1 y 2", "a": "Presecado mecánico"}, {"e": "Transportador sinfín a presecadoras 3 y 4", "a": "Presecado mecánico"}, {"e": "Banda salida de presecadoras 1-2-3-4", "a": "Presecado mecánico"}, {"e": "Presecadora cuadrada pequeña", "a": "Presecado mecánico"}, {"e": "Banda modular de cacao preseco a tolva", "a": "Presecado mecánico"}, {"e": "Diverter y tolva de cacao preseco", "a": "Secado mecánico"}, {"e": "Diverter y banda modular a secadoras línea 1 (Secadores 1 y 2)", "a": "secado mecánico"}, {"e": "Diverter y banda modular a secadoras línea 2 (Secadores 3 y 4)", "a": "Secado mecánico"}, {"e": "Secador multinivel 1", "a": "Secado mecánico"}, {"e": "Secador multinivel 2", "a": "Secado mecánico"}, {"e": "Secador multinivel 3", "a": "Secado mecánico"}, {"e": "Secador multinivel 4", "a": "Secado mecánico"}, {"e": "Banda modular de cacao seco línea 1 (Secadores 1 y 2)", "a": "Secado mecánico"}, {"e": "Banda modular de cacao seco línea 2 (Secadores 3 y 4)", "a": "Secado mecánico"}, {"e": "Banda trasversal de cacao seco línea 3", "a": "Bodega almacenamiento"}, {"e": "Prelimpiadora de cacao seco", "a": "Bodega almacenamiento"}, {"e": "Banda verde 1 de grano seco a tolva", "a": "Bodega almacenamiento"}, {"e": "Banda verde 2 de grano seco a tolva", "a": "Bodega almacenamiento"}, {"e": "Tolva de cacao seco", "a": "Bodega almacenamiento"}, {"e": "Ensacadora Imaquin", "a": "Bodega almacenamiento"}, {"e": "Levantador vertical de sacos", "a": "Bodega almacenamiento"}, {"e": "Banda horizontal de sacos (Recibo de ensacadora)", "a": "Bodega almacenamiento"}, {"e": "Banda de cargue con inclinación automática.", "a": "Bodega almacenamiento"}, {"e": "Banda de cargue con inclinación manual.", "a": "Bodega almacenamiento"}, {"e": "Cosedora industrial de sacos 1", "a": "Bodega almacenamiento"}, {"e": "Cosedora industrial de sacos 2", "a": "Bodega almacenamiento"}, {"e": "Marmita de 250 litros", "a": "Laboratorio de pulpa"}, {"e": "Filtro mecánico", "a": "Laboratorio de pulpa"}, {"e": "Hydroflow", "a": "Laboratorio de pulpa"}, {"e": "Lavador de mazorcas", "a": "Laboratorio de pulpa"}, {"e": "Compresor de tornillo neumático", "a": "Servicios industriales"}, {"e": "Generador CAT C7.1", "a": "Servicios industriales"}, {"e": "Sistema piloto Biodigestores", "a": "Servicios industriales"}, {"e": "Bioreactor prototipo de fermentación de 2 ton", "a": "Fermentación anaeróbica"}, {"e": "Etapa 1 (Recepción)", "a": "Recepción de fruto fresco"}, {"e": "Etapa 2 (Presecado mecánico)", "a": "Presecado mecánico"}, {"e": "Etapa 3 (Secado mecánico)", "a": "Secado mecánico"}, {"e": "Etapa 4 (Bodega almacenamiento)", "a": "Bodega almacenamiento"}, {"e": "Infraestructura", "a": "Postcosecha"}, {"e": "Red de iluminación electrica", "a": "Postcosecha"}, {"e": "Red de potencia principal", "a": "Postcosecha"}, {"e": "Oficina de grano seco", "a": "Laboratorio de grano seco"}, {"e": "Laboratorio de pulpa", "a": "Laboratorio de pulpa"}, {"e": "Cilindro limpiador de cacao seco", "a": "Almacenamiento"}, {"e": "Clasificadora neumática de NIPS y FINOS", "a": "Almacenamiento"}, {"e": "Biodigestor", "a": "Servicios industriales"}, {"e": "Bomba de tanque de mezcla", "a": "Servicios industriales"}, {"e": "Bomba de tanque de recircularción", "a": "Servicios industriales"}, {"e": "Bascula", "a": "Pesaje"}, {"e": "Implemento giratorio del montacargas", "a": "Postcosecha"}, {"e": "Montacargas", "a": "Postcosecha"}], "tipos_trabajo": ["Ajuste a platinas tensoras y/o chumaceras tensoras", "Ajuste de dampers", "Ajuste de esparragos, reforzar malla, arreglar compuertas de piso o cambio de banda de lona", "Ajuste y/o cambio de helice o eje", "Arreglo de carretillas", "Calibración (Ensacadora)", "Cambio de accesorios en PVC", "Cambio de agujas, cambio de correas, ajuste de tornillos", "Cambio de banda y/o tensionar banda", "Cambio de bateria", "Cambio de bujes", "Cambio de ductos del horno", "Cambio de eje secadoras circulares", "Cambio de elastomero de acople araña", "Cambio de empaques, thermofilm, thermolon", "Cambio de filtros, aceite y/o refrigerante", "Cambio de madera, tornillos y/o ruedas", "Cambio de manguera flexible o ajuste", "Cambio de manguera hidraulico", "Cambio de motor, reductor o moto-reductor", "Cambio de piezas (Banda modular)", "Cambio de rodamientos y/o retenedores", "Cambio de termocupla", "Cambio de tornillos, tuercas, arandelas, wasas, remaches", "Cambio de ventilador avivador del horno", "Cambio motor eléctrico", "Cambio y/o ajuste de correa, piñones, poleas, cadenas, prisioneros, cuñas", "Corregir sentido de giro de plateas agitadoras", "Descargue de equipos en planta", "Energizar tablero eléctrico", "Engrase de chumaceras y rodamientos", "Fabricación, montaje o translado", "Grateado y pintado", "Inspeccion general nivel de aceite y refrigerante", "Instalacion y/o ajuste eléctrico", "Instalación de accesorios y tuberia", "Instalación y/o ajuste mecánico", "Limpieza", "Limpieza de aire acondicionado", "Limpieza de radiador planta CAT", "Pruebas nivel de llenado, sistema de bombeo y tuberia", "Reforzar estructura del equipo", "Reparación o desmontaje"], "proveedores": ["Soinka", "Bacao S.A.S", "Iluv", "Madeconfort", "Fimar", "Droma", "Toyota"], "intervencion": ["Correctivo mecánico", "Correctivo eléctrico", "Preventivo mecánico", "Preventivo eléctrico", "Mejora mecánica", "Mejora eléctrica"]};
+const CAT = {"equipos": [{"e": "Banda de rodillos corte mazorca 1", "a": "Recepción de mazorca"}, {"e": "Banda de rodillos corte mazorca 2", "a": "Recepción de mazorca"}, {"e": "Banda de separación de cacao fresco 1 Color verde", "a": "Recepción de mazorca"}, {"e": "Banda de separación de cacao fresco 2 Color blanco", "a": "Recepción de mazorca"}, {"e": "Trasportador trituradora de cascara flexible", "a": "Recepción de mazorca"}, {"e": "Tolva y sinfín inclinado alimentador a tolva 1", "a": "Recepción de fruto fresco"}, {"e": "Banda de mazorca INALRED", "a": "Recepción de mazorca"}, {"e": "Quebradora de mazorca pinhalense", "a": "Recepción de mazorca"}, {"e": "Banda de cascara de mazorca INALRED", "a": "Recepción de mazorca"}, {"e": "Sinfín de fruto fresco con inclinacion automatica", "a": "Recepción de fruto fresco"}, {"e": "Tolva y sinfín a centriflux 1", "a": "Recepción de fruto fresco"}, {"e": "Tolva y sinfín a centriflux 2", "a": "Recepción de fruto fresco"}, {"e": "Bomba de mucilago", "a": "Recepción de fruto fresco"}, {"e": "Bomba de CIP y línea de tubería", "a": "Recepción de fruto fresco"}, {"e": "Centriflux 1", "a": "Recepción de fruto fresco"}, {"e": "Centriflux 2", "a": "Recepción de fruto fresco"}, {"e": "Tolva de mucilago", "a": "Recepción de fruto fresco"}, {"e": "Batería de cajones anaeróbicos 1", "a": "Fermentación anaeróbica"}, {"e": "Batería de cajones anaeróbicos 2", "a": "Fermentación anaeróbica"}, {"e": "Cajones con rodachines", "a": "Fermentación aeróbica"}, {"e": "Transpaleta electrohidráulica o manual", "a": "Presecado mecánico"}, {"e": "Volteadora de cajones 1", "a": "Presecado mecánico"}, {"e": "Volteadora de cajones 2", "a": "Presecado mecánico"}, {"e": "Presecadora 1", "a": "Presecado mecánico"}, {"e": "Presecadora 2", "a": "Presecado mecánico"}, {"e": "Presecadora 3", "a": "Presecado mecánico"}, {"e": "Presecadora 4", "a": "Presecado mecánico"}, {"e": "Banda modular a presecadoras 1 y 2", "a": "Presecado mecánico"}, {"e": "Transportador sinfín a presecadoras 3 y 4", "a": "Presecado mecánico"}, {"e": "Banda salida de presecadoras 1-2-3-4", "a": "Presecado mecánico"}, {"e": "Presecadora cuadrada pequeña", "a": "Presecado mecánico"}, {"e": "Banda modular de cacao preseco a tolva", "a": "Presecado mecánico"}, {"e": "Diverter y tolva de cacao preseco", "a": "Secado mecánico"}, {"e": "Diverter y banda modular a secadoras línea 1 (Secadores 1 y 2)", "a": "Secado mecánico"}, {"e": "Diverter y banda modular a secadoras línea 2 (Secadores 3 y 4)", "a": "Secado mecánico"}, {"e": "Secador multinivel 1", "a": "Secado mecánico"}, {"e": "Secador multinivel 2", "a": "Secado mecánico"}, {"e": "Secador multinivel 3", "a": "Secado mecánico"}, {"e": "Secador multinivel 4", "a": "Secado mecánico"}, {"e": "Banda modular de cacao seco línea 1 (Secadores 1 y 2)", "a": "Secado mecánico"}, {"e": "Banda modular de cacao seco línea 2 (Secadores 3 y 4)", "a": "Secado mecánico"}, {"e": "Banda trasversal de cacao seco línea 3", "a": "Bodega almacenamiento"}, {"e": "Prelimpiadora de cacao seco", "a": "Bodega almacenamiento"}, {"e": "Banda verde 1 de grano seco a tolva", "a": "Bodega almacenamiento"}, {"e": "Banda verde 2 de grano seco a tolva", "a": "Bodega almacenamiento"}, {"e": "Tolva de cacao seco", "a": "Bodega almacenamiento"}, {"e": "Ensacadora Imaquin", "a": "Bodega almacenamiento"}, {"e": "Levantador vertical de sacos", "a": "Bodega almacenamiento"}, {"e": "Banda horizontal de sacos (Recibo de ensacadora)", "a": "Bodega almacenamiento"}, {"e": "Banda de cargue con inclinación automática.", "a": "Bodega almacenamiento"}, {"e": "Banda de cargue con inclinación manual.", "a": "Bodega almacenamiento"}, {"e": "Cosedora industrial de sacos 1", "a": "Bodega almacenamiento"}, {"e": "Cosedora industrial de sacos 2", "a": "Bodega almacenamiento"}, {"e": "Marmita de 250 litros", "a": "Laboratorio de pulpa"}, {"e": "Filtro mecánico", "a": "Laboratorio de pulpa"}, {"e": "Hydroflow", "a": "Laboratorio de pulpa"}, {"e": "Lavador de mazorcas", "a": "Laboratorio de pulpa"}, {"e": "Compresor de tornillo neumático", "a": "Servicios industriales"}, {"e": "Generador CAT C7.1", "a": "Servicios industriales"}, {"e": "Sistema piloto Biodigestores", "a": "Servicios industriales"}, {"e": "Bioreactor prototipo de fermentación de 2 ton", "a": "Fermentación anaeróbica"}, {"e": "Etapa 1 (Recepción)", "a": "Recepción de fruto fresco"}, {"e": "Etapa 2 (Presecado mecánico)", "a": "Presecado mecánico"}, {"e": "Etapa 3 (Secado mecánico)", "a": "Secado mecánico"}, {"e": "Etapa 4 (Bodega almacenamiento)", "a": "Bodega almacenamiento"}, {"e": "Infraestructura", "a": "Postcosecha"}, {"e": "Red de iluminación electrica", "a": "Postcosecha"}, {"e": "Red de potencia principal", "a": "Postcosecha"}, {"e": "Oficina de grano seco", "a": "Laboratorio de grano seco"}, {"e": "Laboratorio de pulpa", "a": "Laboratorio de pulpa"}, {"e": "Cilindro limpiador de cacao seco", "a": "Almacenamiento"}, {"e": "Clasificadora neumática de NIPS y FINOS", "a": "Almacenamiento"}, {"e": "Biodigestor", "a": "Servicios industriales"}, {"e": "Bomba de tanque de mezcla", "a": "Servicios industriales"}, {"e": "Bomba de tanque de recircularción", "a": "Servicios industriales"}, {"e": "Bascula", "a": "Pesaje"}, {"e": "Implemento giratorio del montacargas", "a": "Postcosecha"}, {"e": "Montacargas", "a": "Postcosecha"}, {"e": "Cosedora industrial de sacos", "a": "Bodega almacenamiento"}], "tipos_trabajo": ["Ajuste a platinas tensoras y/o chumaceras tensoras", "Ajuste de dampers", "Ajuste de esparragos, reforzar malla, arreglar compuertas de piso o cambio de banda de lona", "Ajuste y/o cambio de helice o eje", "Arreglo de carretillas", "Calibración (Ensacadora)", "Cambio de accesorios en PVC", "Cambio de agujas, cambio de correas, ajuste de tornillos", "Cambio de banda y/o tensionar banda", "Cambio de bateria", "Cambio de bujes", "Cambio de ductos del horno", "Cambio de eje secadoras circulares", "Cambio de elastomero de acople araña", "Cambio de empaques, thermofilm, thermolon", "Cambio de filtros, aceite y/o refrigerante", "Cambio de madera, tornillos y/o ruedas", "Cambio de manguera flexible o ajuste", "Cambio de manguera hidraulico", "Cambio de motor, reductor o moto-reductor", "Cambio de piezas (Banda modular)", "Cambio de rodamientos y/o retenedores", "Cambio de termocupla", "Cambio de tornillos, tuercas, arandelas, wasas, remaches", "Cambio de ventilador avivador del horno", "Cambio motor eléctrico", "Cambio y/o ajuste de correa, piñones, poleas, cadenas, prisioneros, cuñas", "Corregir sentido de giro de plateas agitadoras", "Descargue de equipos en planta", "Energizar tablero eléctrico", "Engrase de chumaceras y rodamientos", "Fabricación, montaje o translado", "Grateado y pintado", "Inspeccion general nivel de aceite y refrigerante", "Instalacion y/o ajuste eléctrico", "Instalación de accesorios y tuberia", "Instalación y/o ajuste mecánico", "Limpieza", "Limpieza de aire acondicionado", "Limpieza de radiador planta CAT", "Pruebas nivel de llenado, sistema de bombeo y tuberia", "Reforzar estructura del equipo", "Reparación o desmontaje"], "proveedores": ["Soinka", "Bacao S.A.S", "Iluv", "Madeconfort", "Fimar", "Droma", "Toyota"], "intervencion": ["Correctivo mecánico", "Correctivo eléctrico", "Preventivo mecánico", "Preventivo eléctrico", "Mejora mecánica", "Mejora eléctrica"]};
 
 /* ---------- conexión con el servicio ----------
    Pega aquí la dirección de tu Worker, sin barra final. Ejemplo:
@@ -364,6 +384,8 @@ const CAT = {"equipos": [{"e": "Banda de rodillos corte mazorca 1", "a": "Recepc
 const SERVIDOR = "https://ordenes-bacao.mgereda.workers.dev";
 const CLAVE_SERVIDOR = "2MWpGyZcdUQqMTSgiHXAo5gx";
 const KEY = "bacao:ots:v1";
+const KEY_CAT = "bacao:catalogo:v1";
+let CATALOGO = CAT;              // el del archivo, como último respaldo
 const ESTADOS = ["En planeacion","Programado","En ejecucion","Realizado","Reprogramado ","Cancelado"];
 const DISENOS = ["Sin informacion","diseñando","Lista material","Finalizado"];
 const PEDIDO  = ["Por pedir","En requisicion"];
@@ -372,6 +394,33 @@ const INSUMO  = ["En alistamiento","Listo"];
 
 let state = { items: [], nextOT: 478, dec: ",", editId: null, editRemota: null,
               servidor: "", quien: "", abiertas: [], listas: [] };
+
+/* ---------- catálogo ----------
+   Se pide al servicio para poder agregar equipos o proveedores desde el panel
+   sin volver a publicar el archivo. Si no hay señal, se usa la última copia
+   guardada en el teléfono, y si tampoco hay, la que trae el archivo.        */
+async function cargarCatalogo(){
+  if(hayServidor()){
+    try{
+      const r = await fetch(urlServicio() + "/catalogo?k=" + encodeURIComponent(CLAVE_SERVIDOR));
+      const d = await r.json();
+      if(r.ok && d && Array.isArray(d.equipos) && d.equipos.length){
+        CATALOGO = {
+          equipos: d.equipos,
+          tipos_trabajo: d.tipos_trabajo && d.tipos_trabajo.length ? d.tipos_trabajo : CAT.tipos_trabajo,
+          proveedores: d.proveedores && d.proveedores.length ? d.proveedores : CAT.proveedores,
+          intervencion: d.intervencion && d.intervencion.length ? d.intervencion : CAT.intervencion,
+        };
+        try{ localStorage.setItem(KEY_CAT, JSON.stringify(CATALOGO)); }catch(e){}
+        return;
+      }
+    }catch(e){ /* sin señal: se sigue con lo que haya */ }
+  }
+  try{
+    const c = JSON.parse(localStorage.getItem(KEY_CAT) || "null");
+    if(c && c.equipos && c.equipos.length) CATALOGO = c;
+  }catch(e){}
+}
 
 /* ---------- utilidades ---------- */
 const $ = s => document.querySelector(s);
@@ -399,6 +448,8 @@ function aplicar(txt){
   state.items = d.items || [];
   state.nextOT = d.nextOT || 478;
   state.dec = d.dec || ",";
+  state.quien = d.quien || "";
+  state.servidor = d.servidor || "";
 }
 async function cargar(){
   if(tieneStorage){
@@ -480,12 +531,12 @@ function llenarSelect(sel, arr, vacio){
 const pEquipo = $("#p_equipo"), pTrabajo = $("#p_trabajo");
 
 function initForm(){
-  crearPicker(pEquipo, "Equipo", CAT.equipos.map(e=>({label:e.e, sub:e.a})),
+  crearPicker(pEquipo, "Equipo", CATALOGO.equipos.map(e=>({label:e.e, sub:e.a})),
     o => { $("#f_area").textContent = o.sub || "—"; pEquipo._area = o.sub||""; }, "Buscar equipo…");
-  crearPicker(pTrabajo, "Tipo de trabajo", CAT.tipos_trabajo.map(t=>({label:t})), null, "Buscar tipo de trabajo…");
+  crearPicker(pTrabajo, "Tipo de trabajo", CATALOGO.tipos_trabajo.map(t=>({label:t})), null, "Buscar tipo de trabajo…");
 
-  llenarSelect($("#f_interv"), CAT.intervencion);
-  llenarSelect($("#f_prov"), CAT.proveedores);
+  llenarSelect($("#f_interv"), CATALOGO.intervencion);
+  llenarSelect($("#f_prov"), CATALOGO.proveedores);
   llenarSelect($("#f_estado"), ESTADOS);
   llenarSelect($("#f_dis"), DISENOS);
   llenarSelect($("#f_ped"), PEDIDO);
@@ -541,15 +592,22 @@ function leerForm(){
 
 function validar(r){
   const faltan = [];
+  // Una orden que se deja abierta apenas empieza el trabajo: basta equipo y fecha.
+  // Lo demás se exige al marcarla lista.
+  const suave = r.abierta || (state.editRemota && !r.cerrando);
   const marcar = (id,ok)=>{ const el=$("#"+id); el.classList.toggle("err",!ok); };
   marcar("f_fecha", !!r.fecha);   if(!r.fecha) faltan.push("fecha");
-  marcar("f_interv", !!r.interv); if(!r.interv) faltan.push("intervención");
-  marcar("f_prov", !!r.prov);     if(!r.prov) faltan.push("proveedor");
-  marcar("f_info", !!r.info);     if(!r.info) faltan.push("información");
+  if(!suave){
+    marcar("f_interv", !!r.interv); if(!r.interv) faltan.push("intervención");
+    marcar("f_prov", !!r.prov);     if(!r.prov) faltan.push("proveedor");
+    marcar("f_info", !!r.info);     if(!r.info) faltan.push("información");
+  }
   pEquipo.querySelector(".chosen").classList.toggle("err", !r.equipo);
   if(!r.equipo) faltan.push("equipo");
-  pTrabajo.querySelector(".chosen").classList.toggle("err", !r.trabajo);
-  if(!r.trabajo) faltan.push("tipo de trabajo");
+  if(!suave){
+    pTrabajo.querySelector(".chosen").classList.toggle("err", !r.trabajo);
+    if(!r.trabajo) faltan.push("tipo de trabajo");
+  }
   return faltan;
 }
 
@@ -782,6 +840,19 @@ async function guardarRemota(){
 }
 
 async function marcarLista(ot){
+  const r = state.abiertas.find(x => x.ot === ot);
+  if(r){
+    const falta = [];
+    if(!r.interv) falta.push("intervención");
+    if(!r.prov) falta.push("proveedor");
+    if(!r.trabajo) falta.push("tipo de trabajo");
+    if(!r.info) falta.push("información");
+    if(falta.length){
+      toast("Antes de darla por terminada, completa: " + falta.join(", "));
+      editarRemota(ot);
+      return;
+    }
+  }
   if(!confirm("¿Dar por terminada la OT " + ot + "? Pasa a la lista para consolidar en Excel y ya no se podrá completar aquí.")) return;
   try{
     const resp = await fetch(urlServicio() + "/marcar-lista?k=" + encodeURIComponent(CLAVE_SERVIDOR) + "&ot=" + ot + "&confirmar=si");
@@ -883,10 +954,15 @@ function pintarTodo(){
   $("#countAb").textContent = state.abiertas.length;
   $("#count").textContent = state.listas ? state.listas.length : (state.items.length || 0);
   $("#cfg_quien").value = state.quien;
+  $("#quienHdr").textContent = state.quien || "sin definir";
   $("#cfg_dec").value = state.dec;
   $("#cfg_ot").value = state.nextOT;
-  if(SERVIDOR) $("#fila_ot").classList.add("hide");
-  if(SERVIDOR){ $("#fila_srv").classList.add("hide"); } else { $("#cfg_srv").value = state.servidor; }
+  if(SERVIDOR){                       // el estilo va directo: la etiqueta trae el suyo
+    $("#fila_ot").style.display = "none";
+    $("#fila_srv").style.display = "none";
+  }else{
+    $("#cfg_srv").value = state.servidor;
+  }
 
   const sinEnviar = state.items;
   $("#btnEnviar").classList.toggle("hide", !sinEnviar.length);
@@ -970,8 +1046,29 @@ async function bloquear(){
   location.reload();
 }
 
+/* ---------- quién captura ---------- */
+function pedirNombre(){
+  document.body.classList.add("sinnombre");
+  const inp = $("#quienIni"), av = $("#avisoQuien");
+  inp.value = state.quien || "";
+  const listo = async () => {
+    const v = inp.value.trim();
+    if(v.length < 3){ av.textContent = "Escribe tu nombre"; return; }
+    state.quien = v;
+    await guardarTodo();
+    document.body.classList.remove("sinnombre");
+    $("#quienHdr").textContent = v;
+    $("#cfg_quien").value = v;
+    av.textContent = "";
+  };
+  $("#btnQuien").onclick = listo;
+  inp.onkeydown = e => { if(e.key === "Enter") listo(); };
+  setTimeout(()=>inp.focus(), 120);
+}
+
 /* ---------- arranque ---------- */
 (async function(){
+  await cargarCatalogo();
   initForm();
   await revisarAcceso();
   await cargar();
@@ -983,13 +1080,19 @@ async function bloquear(){
   $("#tab-abiertas").onclick = verAbiertas;
   $("#btnRecargar").onclick = cargarAbiertas;
   $("#btnActualizarL").onclick = cargarListas;
+  $("#btnCambiarQuien").onclick = pedirNombre;
+  if(!state.quien) pedirNombre();
   $("#btnGuardar").onclick = guardar;
   $("#btnLimpiar").onclick = limpiar;
   $("#btnCopiar").onclick = copiar;
   $("#btnCsv").onclick = csv;
   $("#btnBloquear").onclick = bloquear;
   $("#btnEnviar").onclick = enviarPendientes;
-  $("#cfg_quien").oninput = async e => { state.quien = e.target.value.trim(); await guardarTodo(); };
+  $("#cfg_quien").oninput = async e => {
+    state.quien = e.target.value.trim();
+    $("#quienHdr").textContent = state.quien || "sin definir";
+    await guardarTodo();
+  };
   $("#cfg_srv").onchange = async e => { state.servidor = e.target.value.trim(); await guardarTodo(); pintarTodo(); };
   $("#cfg_dec").onchange = async e => { state.dec = e.target.value; await guardarTodo(); };
   $("#cfg_ot").onchange = async e => { state.nextOT = Number(e.target.value)||478; await guardarTodo(); pintarTodo(); };

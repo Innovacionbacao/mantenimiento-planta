@@ -318,7 +318,7 @@
         <option value=".">punto (1.5)</option>
       </select>
     </div>
-    <div class="setting">
+    <div class="setting" id="fila_ot">
       <span>Próximo número de OT</span>
       <input type="number" id="cfg_ot" step="1" style="width:110px">
     </div>
@@ -326,7 +326,7 @@
       <span>Quién captura en este teléfono</span>
       <input type="text" id="cfg_quien" placeholder="Nombre" style="width:100%;margin-top:6px">
     </div>
-    <div class="setting" style="display:block">
+    <div class="setting" style="display:block" id="fila_srv">
       <span>Dirección del servicio</span>
       <input type="text" id="cfg_srv" placeholder="https://…workers.dev" style="width:100%;margin-top:6px">
     </div>
@@ -361,7 +361,7 @@ const CAT = {"equipos": [{"e": "Banda de rodillos corte mazorca 1", "a": "Recepc
    Pega aquí la dirección de tu Worker, sin barra final. Ejemplo:
    const SERVIDOR = "https://ordenes-bacao.tuusuario.workers.dev";
    Si la dejas vacía, la app funciona igual pero solo con copiar y pegar.  */
-const SERVIDOR = "https://ordenes-bacao.mgereda.workers.dev";
+const SERVIDOR = "";
 const CLAVE_SERVIDOR = "2MWpGyZcdUQqMTSgiHXAo5gx";
 const KEY = "bacao:ots:v1";
 const ESTADOS = ["En planeacion","Programado","En ejecucion","Realizado","Reprogramado ","Cancelado"];
@@ -493,6 +493,7 @@ function initForm(){
   llenarSelect($("#f_ins"), INSUMO);
 
   $("#f_fecha").value = hoy();
+  $("#otnum").textContent = (SERVIDOR ? "automática" : "—");
   $("#f_prog").addEventListener("change", e => $("#f_semprog").textContent = isoWeek(e.target.value) || "—");
   $("#f_fin").addEventListener("change", e => $("#f_semfin").textContent = isoWeek(e.target.value) || "—");
 
@@ -780,7 +781,7 @@ async function marcarLista(ot){
 }
 
 /* ---------- envío al servicio ---------- */
-function urlServicio(){ return (state.servidor || SERVIDOR).replace(/\/+$/,""); }
+function urlServicio(){ return (SERVIDOR || state.servidor).replace(/\/+$/,""); }
 function hayServidor(){ return !!urlServicio(); }
 
 async function enviarUna(r){
@@ -822,8 +823,10 @@ function pintarTodo(){
   $("#otnum").textContent = state.editId ? "editando" : (hayServidor() ? "automática" : state.nextOT);
   $("#count").textContent = state.items.length;
   $("#cfg_ot").value = state.nextOT;
+  if(SERVIDOR) $("#fila_ot").classList.add("hide");
   $("#cfg_quien").value = state.quien;
-  $("#cfg_srv").value = state.servidor || SERVIDOR;
+  if(SERVIDOR){ $("#fila_srv").classList.add("hide"); }
+  else { $("#cfg_srv").value = state.servidor; }
   $("#cfg_dec").value = state.dec;
 
   const cont = $("#list");

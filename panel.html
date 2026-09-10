@@ -57,6 +57,25 @@
   .ajustes label{display:block;font-size:13px;color:var(--ink-2);margin:10px 0 5px}
   .ajustes input,.ajustes select{width:100%;padding:10px 12px;border:1px solid var(--line);
     border-radius:8px;font:inherit}
+  .ficha{position:fixed;inset:0;z-index:70;background:rgba(20,25,23,.5);display:flex;
+    align-items:center;justify-content:center;padding:16px}
+  .ficha .hoja{background:var(--card);border-radius:12px;width:100%;max-width:620px;max-height:88vh;
+    display:flex;flex-direction:column;overflow:hidden}
+  .ficha .cab{padding:14px 18px;border-bottom:1px solid var(--line-2);display:flex;
+    align-items:center;gap:10px;flex-wrap:wrap}
+  .ficha .cab h3{margin:0;font-size:17px;font-weight:600}
+  .ficha .cab .x{margin-left:auto;background:none;border:0;font-size:24px;line-height:1;
+    color:var(--ink-2);cursor:pointer;padding:2px 6px}
+  .ficha .cuerpo{overflow:auto;padding:6px 18px 18px}
+  .ficha .pie{padding:12px 18px;border-top:1px solid var(--line-2);display:flex;gap:8px;flex-wrap:wrap}
+  .campo{display:grid;grid-template-columns:170px 1fr;gap:12px;padding:8px 0;
+    border-bottom:1px solid var(--line-2);font-size:14px}
+  .campo .k{color:var(--ink-2);font-size:13px}
+  .campo .v{white-space:pre-wrap;word-break:break-word}
+  .campo .v.vacio{color:#A9B1AB}
+  .grupo{font-size:12px;font-weight:600;color:var(--ink-2);margin:16px 0 2px;
+    text-transform:none;letter-spacing:.02em}
+  @media (max-width:560px){ .campo{grid-template-columns:1fr;gap:2px;padding:7px 0} }
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:82px;z-index:50;background:var(--ink);
     color:#fff;padding:11px 16px;border-radius:9px;font-size:14px;opacity:0;pointer-events:none;
     transition:opacity .2s ease;max-width:90vw;text-align:center}
@@ -112,6 +131,18 @@
     <button class="btn main" id="btnListas" type="button">Marcar listas</button>
     <button class="btn" id="btnRestaurar" type="button">Restaurar</button>
     <button class="btn peligro" id="btnEliminar" type="button">Eliminar definitivo</button>
+  </div>
+</div>
+
+<div class="ficha" id="ficha" style="display:none">
+  <div class="hoja">
+    <div class="cab">
+      <h3 id="fichaTitulo">Orden</h3>
+      <span id="fichaEstado" class="badge"></span>
+      <button class="x" id="fichaCerrar" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <div class="cuerpo" id="fichaCuerpo"></div>
+    <div class="pie" id="fichaPie"></div>
   </div>
 </div>
 
@@ -186,6 +217,7 @@ function fmt(r){
     <td><span class="eq">${r.equipo||""}</span><span class="sub">${r.trabajo||""}</span></td>
     <td>${r.interv||""}<span class="sub">${r.estado||"sin estado"}</span></td>
     <td class="num">${r.tiempo||""}</td>
+    <td class="num"><button class="btn chico" data-ver="${r.ot}">Ver</button></td>
   </tr>`;
 }
 function pintar(){
@@ -202,13 +234,16 @@ function pintar(){
   $("#barra").style.display = "";
   v.innerHTML = `<table><thead><tr>
       <th><input type="checkbox" id="ckTodo"></th><th class="num">OT</th><th>Fecha</th>
-      <th>Equipo y trabajo</th><th>Intervención</th><th class="num">Horas</th>
+      <th>Equipo y trabajo</th><th>Intervención</th><th class="num">Horas</th><th></th>
     </tr></thead><tbody>${datos.map(fmt).join("")}</tbody></table>
     ${pestana==="pap" ? `<div class="nota">Marca las que quieras y usa Restaurar para devolverlas,
       o Eliminar definitivo para borrarlas de verdad. Lo eliminado no se recupera.</div>` : ""}
     ${pestana==="ab" ? `<div class="nota">Órdenes que el operario dejó abiertas porque el trabajo sigue
       en curso. No entran al Excel hasta que estén listas.</div>` : ""}`;
 
+  v.querySelectorAll("[data-ver]").forEach(b => b.onclick = e => {
+    e.stopPropagation(); abrirFicha(Number(b.dataset.ver));
+  });
   v.querySelectorAll("[data-ck]").forEach(c => c.onchange = () => {
     const ot = Number(c.dataset.ck);
     c.checked ? sel.add(ot) : sel.delete(ot);
@@ -397,6 +432,84 @@ function pintarAjustes(){
   };
 }
 
+/* ---------- ficha de una orden ---------- */
+const ETIQUETAS = [
+  ["Del trabajo", [["fecha","Fecha de creación"],["equipo","Equipo"],["area","Área"],
+    ["interv","Tipo de intervención"],["prov","Proveedor"],["trabajo","Tipo de trabajo"],
+    ["info","Información adicional"]]],
+  ["Programación", [["prog","Fecha programada"],["semprog","Semana de programación"],["estado","Estado"]]],
+  ["Ejecución", [["horom","Horómetro"],["tiempo","Duración (h)"],["nmec","Nº de mecánicos"],
+    ["hmec","Horas de mecánico"],["naux","Nº de auxiliares"],["haux","Horas de auxiliar"],
+    ["fin","Fecha de finalización"],["semfin","Semana de finalización"]]],
+  ["Materiales", [["dis","Diseños"],["ped","Pedido de materiales"],["lle","Llegada de materiales"],
+    ["ins","Insumo"],["costo","Costo"]]],
+  ["Registro", [["capturado_por","Capturado por"],["recibido","Recibido el"],["editado","Última edición"],
+    ["consolidado_el","Consolidada el"]]],
+];
+
+function abrirFicha(ot){
+  const r = datos.find(x => x.ot === ot);
+  if(!r) return;
+  const etapa = r.borrado ? "En la papelera"
+              : r.consolidado ? "Consolidada"
+              : r.lista === false ? "En curso" : "Lista por consolidar";
+  $("#fichaTitulo").textContent = "OT " + r.ot;
+  $("#fichaEstado").textContent = etapa;
+  $("#fichaEstado").className = "badge" + (r.consolidado ? " ok" : "");
+
+  $("#fichaCuerpo").innerHTML = ETIQUETAS.map(([grupo, campos]) => {
+    const filas = campos.map(([c, et]) => {
+      const v = r[c];
+      return `<div class="campo"><span class="k">${et}</span>
+        <span class="v ${v===""||v==null?"vacio":""}">${v===""||v==null?"sin dato":String(v)}</span></div>`;
+    }).join("");
+    return `<div class="grupo">${grupo}</div>${filas}`;
+  }).join("");
+
+  const btn = (id, txt, clase="btn") => `<button class="${clase}" data-fa="${id}">${txt}</button>`;
+  let acciones = "";
+  if(!r.borrado && !r.consolidado && r.lista !== false)
+    acciones += btn("consolidar","Marcar consolidada","btn main") + btn("reabrir","Devolver a En curso");
+  if(!r.borrado && r.lista === false) acciones += btn("lista","Marcar lista","btn main");
+  if(!r.borrado && !r.consolidado) acciones += btn("papelera","A la papelera","btn peligro");
+  if(r.borrado) acciones += btn("restaurar","Restaurar","btn main");
+  acciones += btn("copiar","Copiar esta fila");
+  $("#fichaPie").innerHTML = acciones;
+
+  $("#fichaPie").querySelectorAll("[data-fa]").forEach(b => b.onclick = () => accionFicha(b.dataset.fa, r));
+  $("#ficha").style.display = "flex";
+}
+function cerrarFicha(){ $("#ficha").style.display = "none"; }
+
+async function accionFicha(que, r){
+  if(que === "copiar"){
+    const cols = cfg.sinOt ? COLS.filter(c => c !== "ot") : COLS;
+    const fila = cols.map(c => {
+      let v = r[c] ?? "";
+      if(DECIMALES.has(c) && v !== "" && cfg.dec === ",") v = String(v).replace(".", ",");
+      return String(v).replace(/[\t\n\r]+/g, " ");
+    }).join("\t");
+    try{ await navigator.clipboard.writeText(fila); toast("Fila copiada"); }
+    catch(e){ toast("El navegador bloqueó el portapapeles"); }
+    return;
+  }
+  const mapa = {
+    consolidar: ["/consolidar", "¿Marcar la OT " + r.ot + " como ya pasada al Excel?", true],
+    papelera:   ["/borrar", "¿Mandar la OT " + r.ot + " a la papelera?", true],
+    restaurar:  ["/restaurar", "¿Devolver la OT " + r.ot + " a la lista?", false],
+    lista:      ["/marcar-lista", "¿Dar por terminada la OT " + r.ot + "?", true],
+    reabrir:    ["/reabrir", "¿Devolver la OT " + r.ot + " a En curso?", true],
+  }[que];
+  if(!mapa) return;
+  const [ruta, texto, confirmar] = mapa;
+  if(!confirm(texto)) return;
+  try{
+    await pedir(ruta, "&ot=" + r.ot + (confirmar ? "&confirmar=si" : ""));
+    toast("OT " + r.ot + " actualizada");
+    cerrarFicha(); await cargar();
+  }catch(e){ toast(e.message); }
+}
+
 /* ---------- acciones ---------- */
 const COLS = ["ot","fecha","equipo","area","interv","prov","trabajo","info","prog","semprog",
               "estado","horom","tiempo","nmec","hmec","naux","haux","fin","semfin",
@@ -473,6 +586,9 @@ function arrancar(){
   $("#tabAb").onclick   = () => ir("ab");
   $("#tabPap").onclick  = () => ir("pap");
   $("#tabCat").onclick  = () => ir("cat");
+  $("#fichaCerrar").onclick = cerrarFicha;
+  $("#ficha").onclick = e => { if(e.target.id === "ficha") cerrarFicha(); };
+  document.addEventListener("keydown", e => { if(e.key === "Escape") cerrarFicha(); });
   $("#tabConf").onclick = () => ir("conf");
   $("#btnCopiar").onclick = copiar;
   $("#btnConsolidar").onclick = () => accion("/consolidar",

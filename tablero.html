@@ -68,6 +68,28 @@
   td.n,th.n{text-align:right;white-space:nowrap}
   .cargando,.vacio{text-align:center;color:var(--ink-2);padding:50px 16px}
 
+  [data-bolsa]{cursor:pointer}
+  .kpi[data-bolsa]:hover,.barra-fila[data-bolsa]:hover,tr[data-bolsa]:hover{background:#F5F7F3}
+  .lupa{font-size:11px;color:var(--ink-2);margin-left:5px}
+  .modal{position:fixed;inset:0;z-index:70;background:rgba(20,25,23,.5);display:none;
+    align-items:center;justify-content:center;padding:16px}
+  .modal.abierto{display:flex}
+  .modal .hoja{background:var(--card);border-radius:12px;width:100%;max-width:680px;max-height:88vh;
+    display:flex;flex-direction:column;overflow:hidden}
+  .modal .cab{padding:14px 18px;border-bottom:1px solid var(--line-2);display:flex;gap:10px;align-items:center}
+  .modal .cab h3{margin:0;font-size:16px;font-weight:600}
+  .modal .cab .x{margin-left:auto;background:none;border:0;font-size:24px;line-height:1;
+    color:var(--ink-2);cursor:pointer;padding:2px 6px}
+  .modal .cuerpo{overflow:auto;padding:8px 18px 18px}
+  .orden{border-bottom:1px solid var(--line-2);padding:11px 0}
+  .orden .l1{display:flex;gap:8px;align-items:baseline;font-size:14px}
+  .orden .l1 b{font-weight:600}
+  .orden .l1 .der{margin-left:auto;color:var(--ink-2);font-size:12.5px}
+  .orden .eq{font-size:13.5px;margin-top:2px}
+  .orden .desc{font-size:13px;color:var(--ink-2);margin-top:3px;white-space:pre-wrap}
+  .orden .mas{font-size:12.5px;color:var(--ink-2);margin-top:6px;display:none}
+  .orden.abierta .mas{display:block}
+  .orden .mas span{display:inline-block;margin-right:14px}
   body.bloqueado>header,body.bloqueado>main{display:none}
   .puerta{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;align-items:center;justify-content:center;padding:24px}
   body.bloqueado .puerta{display:flex}
@@ -102,6 +124,14 @@
     </div>
   </div>
 </header>
+
+<div class="modal" id="modal">
+  <div class="hoja">
+    <div class="cab"><h3 id="modalTitulo">Órdenes</h3>
+      <button class="x" id="modalCerrar" type="button" aria-label="Cerrar">×</button></div>
+    <div class="cuerpo" id="modalCuerpo"></div>
+  </div>
+</div>
 
 <main class="wrap">
   <div class="filtros" id="filtros">
@@ -187,14 +217,58 @@ function enRango(o){
   return true;
 }
 
-/* ---------- piezas visuales ---------- */
-function barras(datos, clase, formato = nf){
-  const max = Math.max(...datos.map(d => d[1]), 1);
-  return datos.map(([et, v]) => `
-    <div>
-      <div class="barra-fila"><span class="et">${et}</span><span class="val">${formato(v)}</span></div>
-      <div class="pista"><div class="relleno ${clase}" style="width:${Math.max(2, v/max*100)}%"></div></div>
+/* ---------- ver las órdenes detrás de cada número ---------- */
+let bolsas = new Map(), nBolsa = 0;
+function bolsa(ordenes, titulo){
+  const id = "b" + (++nBolsa);
+  bolsas.set(id, {ordenes, titulo});
+  return id;
+}
+function marca(ordenes, titulo){
+  return ordenes && ordenes.length ? ` data-bolsa="${bolsa(ordenes, titulo)}"` : "";
+}
+
+function abrirBolsa(id){
+  const b = bolsas.get(id);
+  if(!b || !b.ordenes.length) return;
+  const lista = b.ordenes.slice().sort((a,c) => (aFecha(c.fin)||aFecha(c.fecha)||0) - (aFecha(a.fin)||aFecha(a.fecha)||0));
+  $("#modalTitulo").textContent = b.titulo + " · " + lista.length + (lista.length === 1 ? " orden" : " órdenes");
+  $("#modalCuerpo").innerHTML = lista.map(o => `
+    <div class="orden" data-ot="${o.ot}">
+      <div class="l1"><b>OT ${o.ot}</b><span>${o.fecha || ""}</span>
+        <span class="der">${o._h ? nf(o._h) + " h" : "sin horas"} · ${o.estado || "sin estado"}</span></div>
+      <div class="eq">${o.equipo || ""} — ${o.interv || ""}</div>
+      <div class="desc">${o.trabajo ? "<b>" + o.trabajo + ".</b> " : ""}${o.info || "Sin descripción"}</div>
+      <div class="mas">
+        <span>Área: ${o.area || "—"}</span><span>Proveedor: ${o.prov || "—"}</span>
+        <span>Programada: ${o.prog || "—"}</span><span>Finalizada: ${o.fin || "—"}</span>
+        <span>Mecánicos: ${o.nmec || "—"}</span><span>Horas mecánico: ${o.hmec || "—"}</span>
+        <span>Capturó: ${o.capturado_por || "—"}</span>
+      </div>
     </div>`).join("");
+  $("#modalCuerpo").querySelectorAll(".orden").forEach(el =>
+    el.onclick = () => el.classList.toggle("abierta"));
+  $("#modal").classList.add("abierto");
+}
+function cerrarModal(){ $("#modal").classList.remove("abierto"); }
+
+function enlazarBolsas(){
+  document.querySelectorAll("[data-bolsa]").forEach(el =>
+    el.onclick = e => { e.stopPropagation(); abrirBolsa(el.dataset.bolsa); });
+}
+
+/* ---------- piezas visuales ---------- */
+function barras(datos, clase, formato = nf, detalle = null, titulo = ""){
+  const max = Math.max(...datos.map(d => d[1]), 1);
+  return datos.map(([et, v]) => {
+    const ord = detalle ? detalle(et) : null;
+    const m = ord ? marca(ord, titulo ? titulo + ": " + et : et) : "";
+    return `<div${m}>
+      <div class="barra-fila"><span class="et">${et}${ord ? '<span class="lupa">ver</span>' : ""}</span>
+        <span class="val">${formato(v)}</span></div>
+      <div class="pista"><div class="relleno ${clase}" style="width:${Math.max(2, v/max*100)}%"></div></div>
+    </div>`;
+  }).join("");
 }
 
 function porMes(lista){
@@ -208,7 +282,9 @@ function porMes(lista){
   return `<div class="meses">${claves.map(k => {
     const [a,m] = k.split("-");
     const v = cuenta.get(k);
-    return `<div class="mes"><span class="vv">${v}</span>
+    const delMes = lista.filter(o => o._f.getFullYear() == a && o._f.getMonth()+1 == +m);
+    return `<div class="mes"${marca(delMes, "Órdenes de " + MES[+m-1] + " " + a)}>
+      <span class="vv">${v}</span>
       <div class="col" style="height:${v/max*105}px"></div>
       <span class="lb">${MES[+m-1]}${m==="01"?" "+a.slice(2):""}</span></div>`;
   }).join("")}</div>`;
@@ -283,13 +359,14 @@ function pareto(lista){
   const yPct = p => MT + (H - MT - MB) * (1 - p);
   const corto = t => t.length > 22 ? t.slice(0,21) + "…" : t;
 
-  const barras = mostrar.map((d,i) => {
+  const barrasSvg = mostrar.map((d,i) => {
     const x = ML + i*ancho;
-    return `<rect x="${x+ancho*0.14}" y="${y(d.v)}" width="${ancho*0.72}" height="${H-MB-y(d.v)}"
+    const ord = base.filter(o => ((o.equipo||"sin equipo").trim() || "sin equipo") === d.e);
+    return `<g${marca(ord, d.e)}><rect x="${x+ancho*0.14}" y="${y(d.v)}" width="${ancho*0.72}" height="${H-MB-y(d.v)}"
       fill="var(--verde)" rx="2"><title>${d.e}: ${nf(d.v)}</title></rect>
       <text class="ejeTxt" x="${x+ancho/2}" y="${y(d.v)-4}" text-anchor="middle">${nf(d.v)}</text>
       <text class="ejeTxt" x="${x+ancho/2}" y="${H-MB+12}" text-anchor="end"
-        transform="rotate(-40 ${x+ancho/2} ${H-MB+12})">${corto(d.e)}</text>`;
+        transform="rotate(-40 ${x+ancho/2} ${H-MB+12})">${corto(d.e)}</text></g>`;
   }).join("");
 
   const puntos = mostrar.map((d,i) => `${ML + i*ancho + ancho/2},${yPct(d.pct)}`).join(" ");
@@ -308,7 +385,7 @@ function pareto(lista){
       <line x1="${ML}" x2="${W-MR}" y1="${yPct(0.8)}" y2="${yPct(0.8)}"
         stroke="var(--alerta)" stroke-width="1.4" stroke-dasharray="5 4"/>
       <text class="ejeTxt" x="${ML+4}" y="${yPct(0.8)-5}" fill="var(--alerta)">80%</text>
-      ${barras}
+      ${barrasSvg}
       <polyline points="${puntos}" fill="none" stroke="var(--accent)" stroke-width="2"/>
       ${marcas}
     </svg>
@@ -317,13 +394,13 @@ function pareto(lista){
         pBase === "horas" ? "las horas" : "las órdenes"}${pTipo ? " de " + pTipo : ""}:
       ${conAcum.slice(0, corte).map(x => x.e).join(", ")}.
       ${todos.length > 20 ? `El gráfico muestra los 20 primeros; el acumulado se calcula sobre los ${todos.length}.` : ""}
-      Total del período: ${nf(total)} ${unidad}.
+      Total del período: ${nf(total)} ${unidad}. Toca una barra para ver esas órdenes.
     </div>`;
 }
 
 function pintarPareto(){
   const cont = $("#pareto");
-  if(cont) cont.innerHTML = pareto(todas.filter(enRango));
+  if(cont){ cont.innerHTML = pareto(todas.filter(enRango)); enlazarBolsas(); }
 }
 
 /* ---------- indicadores de gestión ----------
@@ -462,19 +539,30 @@ function pintarIndicadores(){
   const viejas = K.pend.filter(x => x.d > 30).length;
   const mediana = K.cierre.length ? K.cierre.slice().sort((a,b)=>a-b)[Math.floor(K.cierre.length/2)] : 0;
 
+  const tarde = lista.filter(o => { const p = aFecha(o.prog), f = aFecha(o.fin); return p && f && f > p; });
+  const equiposReinc = new Set(K.reinc.map(r => r.eq));
+  const ordsReinc = lista.filter(o => equiposReinc.has((o.equipo||"").trim()) &&
+                                      (o.interv||"").toLowerCase().includes("correctivo"));
+
   $("#cuerpo").innerHTML = `
     <div class="kpis">
-      <div class="kpi"><div class="n">${K.cumplimiento === null ? "—" : Math.round(K.cumplimiento*100) + "%"}</div>
-        <div class="t">Cumplimiento de lo programado</div>
+      <div class="kpi"${marca(tarde, "Terminadas después de la fecha programada")}>
+        <div class="n">${K.cumplimiento === null ? "—" : Math.round(K.cumplimiento*100) + "%"}</div>
+        <div class="t">Cumplimiento de lo programado<span class="lupa">ver las tarde</span></div>
         <div class="p">terminadas en la fecha o antes, sobre ${K.conProg} con fecha programada</div></div>
-      <div class="kpi"><div class="n">${nf(K.medioCierre)}</div>
-        <div class="t">Días promedio para cerrar</div>
+      <div class="kpi"${marca(K.cierre.length ? lista.filter(o => {
+          const c = aFecha(o.fecha), f = aFecha(o.fin);
+          return c && f && diasEntre(c,f) > 30; }) : [], "Órdenes que tardaron más de 30 días en cerrarse")}>
+        <div class="n">${nf(K.medioCierre)}</div>
+        <div class="t">Días promedio para cerrar<span class="lupa">ver las lentas</span></div>
         <div class="p">mediana de ${mediana} días, sobre ${K.cierre.length} órdenes</div></div>
-      <div class="kpi"><div class="n">${K.pend.length}</div>
-        <div class="t">Pendientes sin cerrar</div>
+      <div class="kpi"${marca(K.pend.map(x => x.o), "Órdenes pendientes sin cerrar")}>
+        <div class="n">${K.pend.length}</div>
+        <div class="t">Pendientes sin cerrar<span class="lupa">ver</span></div>
         <div class="p">${viejas} llevan más de 30 días</div></div>
-      <div class="kpi"><div class="n">${K.reinc.reduce((s,r)=>s+r.n,0)}</div>
-        <div class="t">Reincidencias</div>
+      <div class="kpi"${marca(ordsReinc, "Correctivos de los equipos que reinciden")}>
+        <div class="n">${K.reinc.reduce((s,r)=>s+r.n,0)}</div>
+        <div class="t">Reincidencias<span class="lupa">ver</span></div>
         <div class="p">el mismo equipo, correctivo, dos veces en menos de 30 días</div></div>
     </div>
 
@@ -489,22 +577,31 @@ function pintarIndicadores(){
           La línea roja marca el 80%, una meta razonable para empezar.</p></div>
 
       <div class="caja"><h2>Antigüedad de lo pendiente</h2>
-        ${barras(K.backlog.map(b => [b[0], b[1]]), "a", ni)}
+        ${barras(K.backlog.map(b => [b[0], b[1]]), "a", ni, et => {
+          const t = {"Menos de 7 días":[0,7],"De 7 a 30":[7,30],"De 30 a 90":[30,90],"Más de 90":[90,1e9]}[et];
+          return K.pend.filter(x => x.d >= t[0] && x.d < t[1]).map(x => x.o);
+        }, "Pendientes")}
         <p style="font-size:12.5px;color:var(--ink-2);margin:10px 0 0">
           Cuenta desde la fecha de creación hasta hoy, sobre todo el histórico.</p></div>
 
       <div class="caja"><h2>Equipos que vuelven a fallar más pronto</h2>
         ${K.entre.length ? `<table><thead><tr><th>Equipo</th><th class="n">Correctivos</th>
           <th class="n">Días entre uno y otro</th></tr></thead><tbody>
-          ${K.entre.slice(0,10).map(e => `<tr><td>${e.eq}</td><td class="n">${e.n}</td>
-            <td class="n">${nf(e.dias)}</td></tr>`).join("")}</tbody></table>`
+          ${K.entre.slice(0,10).map(e => {
+            const ord = lista.filter(o => (o.equipo||"").trim() === e.eq &&
+              (o.interv||"").toLowerCase().includes("correctivo"));
+            return `<tr${marca(ord, "Correctivos de " + e.eq)}><td>${e.eq}<span class="lupa">ver</span></td>
+              <td class="n">${e.n}</td><td class="n">${nf(e.dias)}</td></tr>`;
+          }).join("")}</tbody></table>`
           : `<div class="vacio">Ningún equipo tiene tres o más correctivos en el período.</div>`}
         <p style="font-size:12.5px;color:var(--ink-2);margin:10px 0 0">
           Sustituto del MTBF: promedio de días entre correctivos, para equipos con tres o más.
           Entre menos días, más candidato a un preventivo.</p></div>
 
       <div class="caja"><h2>Reincidencias por equipo</h2>
-        ${K.reinc.length ? barras(K.reinc.slice(0,10).map(r => [r.eq, r.n]), "", ni)
+        ${K.reinc.length ? barras(K.reinc.slice(0,10).map(r => [r.eq, r.n]), "", ni,
+            eq => lista.filter(o => (o.equipo||"").trim() === eq &&
+              (o.interv||"").toLowerCase().includes("correctivo")), "Correctivos de")
           : `<div class="vacio">Sin reincidencias en el período.</div>`}
         <p style="font-size:12.5px;color:var(--ink-2);margin:10px 0 0">
           Veces que un equipo volvió a fallar dentro de los 30 días siguientes.
@@ -522,11 +619,12 @@ function pintarIndicadores(){
 /* ---------- pintado ---------- */
 let vista = "resumen";
 function pintar(){
+  bolsas = new Map(); nBolsa = 0;
   $("#periodo").textContent = desde
     ? `${desde.toLocaleDateString("es-CO")} a ${hasta.toLocaleDateString("es-CO")}`
     : "histórico completo";
-  if(vista === "indic") return pintarIndicadores();
-  return pintarResumen();
+  if(vista === "indic"){ pintarIndicadores(); } else { pintarResumen(); }
+  enlazarBolsas();
 }
 
 function pintarResumen(){
@@ -549,6 +647,7 @@ function pintarResumen(){
   const tipos = agrupar(lista, "interv", o => o._h);
   const estados = agrupar(lista, "estado");
   const personas = agrupar(lista, "capturado_por");
+  const porCampo = campo => et => lista.filter(o => ((o[campo]||"sin dato").trim() || "sin dato") === et);
 
   $("#cuerpo").innerHTML = `
     <div class="kpis">
@@ -584,10 +683,14 @@ function pintarResumen(){
     </div>
 
     <div class="rejilla">
-      <div class="caja"><h2>Horas por tipo de intervención</h2>${barras(tipos,"")}</div>
-      <div class="caja"><h2>Órdenes por estado</h2>${barras(estados,"a",ni)}</div>
-      <div class="caja"><h2>Los 10 equipos con más horas</h2>${barras(equipos,"s")}</div>
-      <div class="caja"><h2>Horas por área</h2>${barras(areas,"s")}</div>
+      <div class="caja"><h2>Horas por tipo de intervención</h2>
+        ${barras(tipos,"",nf,porCampo("interv"),"Intervención")}</div>
+      <div class="caja"><h2>Órdenes por estado</h2>
+        ${barras(estados,"a",ni,porCampo("estado"),"Estado")}</div>
+      <div class="caja"><h2>Los 10 equipos con más horas</h2>
+        ${barras(equipos,"s",nf,porCampo("equipo"))}</div>
+      <div class="caja"><h2>Horas por área</h2>
+        ${barras(areas,"s",nf,porCampo("area"),"Área")}</div>
     </div>
 
     <div class="caja"><h2>Últimas órdenes registradas</h2>
@@ -598,7 +701,8 @@ function pintarResumen(){
           <td>${o.interv||""}</td><td>${o.estado||""}</td><td class="n">${o._h?nf(o._h):""}</td></tr>`).join("")}
         </tbody></table></div>
 
-    ${personas.length > 1 ? `<div class="caja"><h2>Quién registró</h2>${barras(personas,"a",ni)}</div>` : ""}
+    ${personas.length > 1 ? `<div class="caja"><h2>Quién registró</h2>
+      ${barras(personas,"a",ni,porCampo("capturado_por"))}</div>` : ""}
 
     <p style="font-size:12.5px;color:var(--ink-2);margin:16px 0 0" id="notaFinal">
       Las órdenes se ubican en el tiempo por su fecha de finalización, y si no la tienen,
@@ -637,6 +741,9 @@ function arrancar(){
   };
   $("#f_desde").onchange = manual; $("#f_hasta").onchange = manual;
   $("#btnRecargar").onclick = traer;
+  $("#modalCerrar").onclick = cerrarModal;
+  $("#modal").onclick = e => { if(e.target.id === "modal") cerrarModal(); };
+  document.addEventListener("keydown", e => { if(e.key === "Escape") cerrarModal(); });
   $("#v_resumen").onclick = () => { vista = "resumen";
     $("#v_resumen").setAttribute("aria-pressed","true"); $("#v_indic").setAttribute("aria-pressed","false"); pintar(); };
   $("#v_indic").onclick = () => { vista = "indic";

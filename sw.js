@@ -2,9 +2,10 @@
    Estrategia: la red manda, el caché es el respaldo.
    Así una versión nueva llega sola en cuanto hay señal, y si no hay señal
    la aplicación abre igual con la última copia descargada.               */
-const VERSION = "bacao-v2";
+const VERSION = "bacao-v3";
 const BASICOS = ["./index.html", "./panel.html", "./tablero.html",
-                 "./manifest.json", "./iconos/icono-192.png", "./iconos/icono-512.png"];
+                 "./manifest.json", "./bacao.svg",
+                 "./iconos/icono-192.png", "./iconos/icono-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(BASICOS)).then(() => self.skipWaiting()));

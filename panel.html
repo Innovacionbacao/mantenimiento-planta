@@ -1,6 +1,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Panel de órdenes</title>
+<link rel="icon" href="./iconos/icono-192.png">
+<link rel="apple-touch-icon" href="./iconos/icono-192.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -76,6 +79,18 @@
   .grupo{font-size:12px;font-weight:600;color:var(--ink-2);margin:16px 0 2px;
     text-transform:none;letter-spacing:.02em}
   @media (max-width:560px){ .campo{grid-template-columns:1fr;gap:2px;padding:7px 0} }
+
+  .navApp{display:flex;gap:4px;align-items:center;font-size:12.5px;margin-left:auto}
+  .navApp a{color:var(--ink-2);text-decoration:none;padding:4px 9px;border-radius:6px;
+    border:1px solid transparent}
+  .navApp a:hover{background:#EDEFEB}
+  .navApp a[aria-current="page"]{color:var(--ink);font-weight:600;border-color:var(--line);background:#fff}
+
+  .marca{display:flex;align-items:center;gap:10px}
+  .marca img{height:30px;width:auto;display:block}
+  .credito{max-width:900px;margin:26px auto 0;padding:14px 16px 26px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--ink-2);text-align:center}
+  .credito b{font-weight:500;color:var(--ink)}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:82px;z-index:50;background:var(--ink);
     color:#fff;padding:11px 16px;border-radius:9px;font-size:14px;opacity:0;pointer-events:none;
     transition:opacity .2s ease;max-width:90vw;text-align:center}
@@ -106,8 +121,13 @@
 
 <header>
   <div class="hd">
-    <h1>Panel de órdenes</h1>
+    <div class="marca"><img src="./bacao.svg" alt="Bacao"><h1>Panel de órdenes</h1></div>
     <div class="cuentas" id="cuentas">…</div>
+    <nav class="navApp">
+      <a href="./index.html">Órdenes</a>
+      <a href="./panel.html" aria-current="page">Panel</a>
+      <a href="./tablero.html">Tablero</a>
+    </nav>
   </div>
   <div class="tabs" role="tablist">
     <button class="tab" id="tabPend" role="tab" aria-selected="true">Por consolidar</button>
@@ -145,6 +165,11 @@
     <div class="cuerpo" id="fichaCuerpo"></div>
     <div class="pie" id="fichaPie"></div>
   </div>
+</div>
+
+<div class="credito">
+  Seguimiento de mantenimiento · Planta Bacao<br>
+  Desarrollo: <b>Manuel Gerea</b> y <b>Brayan López</b>
 </div>
 
 <div class="toast" id="toast"></div>

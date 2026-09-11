@@ -150,6 +150,12 @@
   .setting{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--ink-2);margin:10px 0}
   .setting select,.setting input{width:auto;padding:7px 10px;font-size:13.5px}
 
+
+  .marca{display:flex;align-items:center;gap:10px}
+  .marca img{height:30px;width:auto;display:block}
+  .credito{max-width:900px;margin:26px auto 0;padding:14px 16px 26px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--ink-2);text-align:center}
+  .credito b{font-weight:500;color:var(--ink)}
   /* Pantalla de acceso */
   body.bloqueado>header,body.bloqueado>main,body.bloqueado>.savebar{display:none}
   body.sinnombre>header,body.sinnombre>main,body.sinnombre>.savebar{display:none}
@@ -175,6 +181,7 @@
 
 <div class="puerta" id="puerta">
   <div class="caja">
+    <img src="./bacao.svg" alt="Bacao" style="width:150px;margin:0 auto 18px;display:block">
     <h2>Órdenes de mantenimiento</h2>
     <p>Escribe el código para entrar</p>
     <input type="password" id="pin" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="······">
@@ -196,7 +203,7 @@
 
 <header>
   <div class="hd">
-    <h1>Órdenes de mantenimiento</h1>
+    <div class="marca"><img src="./bacao.svg" alt="Bacao"><h1>Órdenes de mantenimiento</h1></div>
     <div class="ot">OT <b id="otnum">—</b></div>
   </div>
   <div style="max-width:520px;margin:0 auto;padding:0 14px 8px;font-size:12.5px;color:var(--ink-2)">
@@ -363,6 +370,15 @@
       <button class="btn ghost" type="button" id="btnAvisos" style="padding:8px 12px;font-size:13.5px">Activar avisos</button>
       <span id="estadoAvisos" style="font-size:12.5px;margin-left:8px"></span>
     </div>
+    <div class="setting" style="display:block">
+      <span>Ir a</span>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <a href="./panel.html" class="btn ghost" style="text-decoration:none;padding:8px 12px;
+          font-size:13.5px;color:var(--ink)">Panel</a>
+        <a href="./tablero.html" class="btn ghost" style="text-decoration:none;padding:8px 12px;
+          font-size:13.5px;color:var(--ink)">Tablero</a>
+      </div>
+    </div>
     <div class="setting" style="flex-wrap:wrap;gap:8px">
       <button class="btn ghost" type="button" id="btnCsv" style="padding:8px 12px;font-size:13.5px">Descargar CSV</button>
       <button class="btn ghost" type="button" id="btnBloquear" style="padding:8px 12px;font-size:13.5px">Bloquear</button>
@@ -384,6 +400,11 @@
     <button class="btn ghost" id="btnCopiar" type="button">Copiar</button>
     <button class="btn main hide" id="btnEnviar" type="button">Reintentar envío</button>
   </div>
+</div>
+
+<div class="credito" style="max-width:520px">
+  Seguimiento de mantenimiento · Planta Bacao<br>
+  Desarrollo: <b>Manuel Gerea</b> y <b>Brayan López</b>
 </div>
 
 <div class="toast" id="toast"></div>

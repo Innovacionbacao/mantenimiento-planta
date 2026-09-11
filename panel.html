@@ -575,6 +575,19 @@ function pintarAjustes(){
   </div>
 
   <div class="ajustes">
+    <label>Espacio y limpieza</label>
+    <div id="espacio" style="font-size:13.5px;color:var(--ink-2);margin:6px 0 10px">Consultando…</div>
+    <p style="font-size:13px;color:var(--ink-2);margin:0 0 10px">
+      Solo se puede archivar lo que ya está consolidado, es decir lo que ya vive en tu Excel.
+      El botón descarga primero un respaldo completo y después borra del servicio.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:13.5px">Archivar hasta la OT</span>
+      <input type="number" id="a_hastaOt" style="width:110px">
+      <button class="btn peligro" id="btnPurgar" type="button">Respaldar y archivar</button>
+    </div>
+  </div>
+
+  <div class="ajustes">
     <label>Cargar el histórico del Excel</label>
     <p style="font-size:13px;color:var(--ink-2);margin:4px 0 10px">
       Sube el archivo historico-ordenes.json una sola vez. Las órdenes entran ya consolidadas,
@@ -591,6 +604,46 @@ function pintarAjustes(){
   $("#a_srv").onchange = e => { cfg.servidor = e.target.value.trim(); guardarCfg(); cargar(); };
   $("#a_dec").onchange = e => { cfg.dec = e.target.value; guardarCfg(); };
   $("#a_sinot").onchange = e => { cfg.sinOt = e.target.value === "si"; guardarCfg(); };
+
+  pedir("/espacio").then(e => {
+    $("#espacio").innerHTML = `<b style="color:var(--ink)">${e.ordenes}</b> órdenes ocupando
+      <b style="color:var(--ink)">${e.kb} KB</b> de ${e.limite_plan_gratuito_mb} MB disponibles.
+      ${e.consolidadas} ya consolidadas, archivables hasta la OT ${e.mayor_ot_consolidada}.
+      Por año: ${Object.entries(e.por_anio).map(([a,n]) => a + ": " + n).join(" · ")}.`;
+    $("#a_hastaOt").value = e.mayor_ot_consolidada;
+  }).catch(err => { $("#espacio").textContent = "No se pudo consultar: " + err.message; });
+
+  $("#btnPurgar").onclick = async () => {
+    const hasta = Number($("#a_hastaOt").value);
+    if(!hasta){ toast("Escribe hasta qué número de OT"); return; }
+    if(!confirm(`Primero se descarga un respaldo con TODO el histórico.\n\n` +
+                `Después se borrarán del servicio las órdenes consolidadas hasta la OT ${hasta}. ` +
+                `Seguirán en tu Excel y en el respaldo, pero no en el tablero ni en el panel.\n\n¿Sigues?`)) return;
+    try{
+      const r = await fetch(url("/registros", "&estado=todas"));
+      const lista = await r.json();
+      const cab = ["OT","Fecha","Equipo","Area","Tipo de intervencion","Proveedor","Tipo de trabajo",
+        "Informacion adicional","Fecha de programacion","Semana de programacion","Estado","Horometro",
+        "Tiempo del mantenimiento","Num mecanicos","Horas mtto mecanico","Num auxiliares",
+        "Horas mtto auxiliar","Fecha finalizacion","Semana finalizacion","Disenos","Pedido de materiales",
+        "Llegada materiales","Insumo","Costo","Capturado por","Recibido"];
+      const campos = ["ot","fecha","equipo","area","interv","prov","trabajo","info","prog","semprog",
+        "estado","horom","tiempo","nmec","hmec","naux","haux","fin","semfin","dis","ped","lle","ins",
+        "costo","capturado_por","recibido"];
+      const esc = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+      const csv = "\uFEFF" + [cab.join(";")].concat(
+        lista.map(o => campos.map(c => esc(o[c])).join(";"))).join("\r\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+      a.download = `respaldo_antes_de_archivar_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      await new Promise(res => setTimeout(res, 1200));
+      if(!confirm("¿Se descargó el respaldo? Solo continúa si lo tienes guardado.")) return;
+      const d = await pedir("/purgar", "&hasta=" + hasta + "&confirmar=si");
+      toast(`${d.borradas} órdenes archivadas. Quedan ${d.quedan}.`);
+      pintarAjustes();
+    }catch(err){ toast(err.message); }
+  };
 
   let archivoHist = null;
   $("#a_hist").onchange = e => {

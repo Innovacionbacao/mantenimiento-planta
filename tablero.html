@@ -101,6 +101,25 @@
   .orden .mas{font-size:12.5px;color:var(--ink-2);margin-top:6px;display:none}
   .orden.abierta .mas{display:block}
   .orden .mas span{display:inline-block;margin-right:14px}
+  .soloImpresion{display:none}
+  @media print{
+    @page{size:A4 portrait;margin:12mm}
+    body{background:#fff;padding:0;font-size:11px}
+    header,.filtros,.ctrl,.puerta,.modal,.lupa{display:none!important}
+    .wrap{max-width:none;padding:0}
+    .soloImpresion{display:block;margin-bottom:14px;border-bottom:1px solid #CFD4CD;padding-bottom:10px}
+    .soloImpresion h1{font-size:17px;margin:0 0 3px}
+    .soloImpresion p{margin:0;font-size:11px;color:#5C6660}
+    .caja,.kpi{border:1px solid #CFD4CD;break-inside:avoid;page-break-inside:avoid}
+    .caja{margin:10px 0;padding:10px 12px}
+    .caja h2{font-size:12px}
+    .kpis{gap:8px}
+    .kpi .n{font-size:19px}
+    .rejilla{grid-template-columns:1fr 1fr;gap:10px}
+    .act{break-inside:avoid}
+    table{font-size:10px}
+    a[href]:after{content:""}
+  }
   body.bloqueado>header,body.bloqueado>main{display:none}
   .puerta{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;align-items:center;justify-content:center;padding:24px}
   body.bloqueado .puerta{display:flex}
@@ -131,6 +150,7 @@
       <span class="sub" id="sello"></span>
       <button class="btn" id="btnExpPeriodo" type="button">Exportar período</button>
       <button class="btn" id="btnExpTodo" type="button">Respaldo completo</button>
+      <button class="btn" id="btnPdf" type="button">Informe PDF</button>
       <button class="btn" id="btnRecargar" type="button">Actualizar</button>
     </div>
   </div>
@@ -145,6 +165,7 @@
 </div>
 
 <main class="wrap">
+  <div class="soloImpresion" id="cabImpresion"></div>
   <div class="filtros" id="filtros">
     <button class="btn" data-rango="30">Últimos 30 días</button>
     <button class="btn" data-rango="90">Últimos 3 meses</button>
@@ -843,6 +864,14 @@ function arrancar(){
   };
   $("#f_desde").onchange = manual; $("#f_hasta").onchange = manual;
   $("#btnRecargar").onclick = () => { alertas = null; traer(); if(vista === "prev") traerAlertas(); };
+  $("#btnPdf").onclick = () => {
+    const titulos = {resumen:"Informe de mantenimiento", indic:"Indicadores de gestión",
+                     prev:"Estado del mantenimiento preventivo"};
+    $("#cabImpresion").innerHTML = `<h1>${titulos[vista]}</h1>
+      <p>Planta Bacao · ${desde ? desde.toLocaleDateString("es-CO") + " a " + hasta.toLocaleDateString("es-CO")
+        : "histórico completo"} · generado el ${new Date().toLocaleDateString("es-CO")}</p>`;
+    window.print();
+  };
   $("#modalCerrar").onclick = cerrarModal;
   $("#modal").onclick = e => { if(e.target.id === "modal") cerrarModal(); };
   document.addEventListener("keydown", e => { if(e.key === "Escape") cerrarModal(); });

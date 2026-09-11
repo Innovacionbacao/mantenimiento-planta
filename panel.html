@@ -377,6 +377,7 @@ async function pintarPreventivo(){
       <div style="display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap">
         <button class="btn main" id="btnHoro" type="button" disabled>Cargar horómetros</button>
         <button class="btn" id="btnRevisar" type="button">Revisar plan y generar órdenes</button>
+        <button class="btn peligro" id="btnCero" type="button">Poner a cero las vencidas</button>
         <span id="progHoro" style="font-size:13px;color:var(--ink-2)"></span>
       </div>
     </div>
@@ -398,11 +399,20 @@ async function pintarPreventivo(){
 
     <div class="ajustes">
       <label>Estado de cada actividad</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0">
+        <button class="btn" id="btnSelVenc" type="button">Seleccionar las vencidas</button>
+        <button class="btn" id="btnSelNada" type="button">Quitar selección</button>
+        <button class="btn peligro" id="btnCeroSel" type="button" disabled>Poner a cero las seleccionadas</button>
+        <span id="cuentaSel" style="font-size:13px;color:var(--ink-2)"></span>
+      </div>
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">
-        <thead><tr><th style="text-align:left">Equipo</th><th style="text-align:left">Actividad</th>
+        <thead><tr><th><input type="checkbox" id="ckTodasAct"></th>
+          <th style="text-align:left">Equipo</th><th style="text-align:left">Actividad</th>
           <th class="num">Frec.</th><th class="num">Lleva</th><th class="num">Uso</th>
           <th style="text-align:left">Estado</th></tr></thead>
         <tbody>${filas.slice(0,60).map(f => `<tr>
+          <td><input type="checkbox" data-act="${f.id}" data-estado="${f.estado}"
+              ${f.actual === null ? "disabled title='sin lectura de horómetro'" : ""}></td>
           <td>${f.equipo}</td><td>${f.actividad}</td>
           <td class="num">${f.frecuencia}</td><td class="num">${f.horas === null ? "—" : Math.round(f.horas)}</td>
           <td class="num" style="color:${color(f)};font-weight:600">${pct(f)}</td>
@@ -464,6 +474,49 @@ async function pintarPreventivo(){
     }catch(err){ toast(err.message); }
   };
 
+  const casillas = () => [...document.querySelectorAll("[data-act]")];
+  const seleccionadas = () => casillas().filter(c => c.checked).map(c => c.dataset.act);
+  const refrescarSel = () => {
+    const n = seleccionadas().length;
+    $("#cuentaSel").textContent = n ? n + " seleccionada(s)" : "";
+    $("#btnCeroSel").disabled = !n;
+  };
+  casillas().forEach(c => c.onchange = refrescarSel);
+  $("#ckTodasAct").onchange = e => {
+    casillas().forEach(c => { if(!c.disabled) c.checked = e.target.checked; });
+    refrescarSel();
+  };
+  $("#btnSelVenc").onclick = () => {
+    casillas().forEach(c => { c.checked = !c.disabled && c.dataset.estado === "vencido"; });
+    refrescarSel();
+  };
+  $("#btnSelNada").onclick = () => {
+    casillas().forEach(c => c.checked = false);
+    $("#ckTodasAct").checked = false;
+    refrescarSel();
+  };
+  $("#btnCeroSel").onclick = async () => {
+    const ids = seleccionadas();
+    if(!ids.length) return;
+    if(!confirm(`Se van a poner a cero ${ids.length} actividad(es): su último mantenimiento ` +
+                `pasa a ser el horómetro actual y la cuenta arranca hoy.\n\n¿Sigues?`)) return;
+    try{
+      const d = await pedir("/poner-a-cero", "&ids=" + encodeURIComponent(ids.join(",")) + "&confirmar=si");
+      toast(d.actividades_puestas_a_cero + " actividad(es) puestas a cero");
+      pintarPreventivo();
+    }catch(e){ toast(e.message); }
+  };
+
+  $("#btnCero").onclick = async () => {
+    if(!confirm("Esto declara al día las actividades vencidas: su último mantenimiento pasa a ser " +
+                "el horómetro actual y el contador arranca de nuevo desde hoy.\n\n" +
+                "Hazlo solo si esas cifras vienen de datos desactualizados, no de trabajos sin hacer.\n\n¿Sigues?")) return;
+    try{
+      const d = await pedir("/poner-a-cero", "&solo=vencidas&confirmar=si");
+      toast(d.actividades_puestas_a_cero + " actividad(es) puestas a cero");
+      pintarPreventivo();
+    }catch(e){ toast(e.message); }
+  };
   $("#btnPlanRec").onclick = pintarPreventivo;
   $("#btnPlan").onclick = async () => {
     const plan = $("#c_plan").value.split("\n").map(l => l.trim()).filter(Boolean).map((l,i) => {

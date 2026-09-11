@@ -1,0 +1,21 @@
+{
+  "name": "Órdenes de mantenimiento — Bacao",
+  "short_name": "Órdenes",
+  "description": "Captura y seguimiento de órdenes de mantenimiento de planta",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#E7E9E4",
+  "theme_color": "#E7E9E4",
+  "lang": "es-CO",
+  "icons": [
+    { "src": "iconos/icono-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "iconos/icono-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "iconos/icono-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Panel de administración", "url": "./panel.html" },
+    { "name": "Tablero", "url": "./tablero.html" }
+  ]
+}

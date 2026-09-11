@@ -1,5 +1,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./iconos/icono-192.png">
+<link rel="apple-touch-icon" href="./iconos/icono-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Órdenes">
@@ -198,6 +201,10 @@
   </div>
   <div style="max-width:520px;margin:0 auto;padding:0 14px 8px;font-size:12.5px;color:var(--ink-2)">
     Captura: <b id="quienHdr" style="color:var(--ink);font-weight:500">—</b>
+    <button type="button" id="btnInstalar" class="hide"
+      style="background:var(--accent);border:1px solid #D18F00;color:var(--accent-ink);
+             font:inherit;font-size:12.5px;font-weight:600;border-radius:6px;
+             padding:3px 9px;margin-left:10px;cursor:pointer">Instalar app</button>
     <button type="button" id="btnCambiarQuien"
       style="background:none;border:0;color:var(--ink-2);font:inherit;font-size:12.5px;
              text-decoration:underline;cursor:pointer;padding:0 0 0 6px">cambiar</button>
@@ -1066,6 +1073,25 @@ function pedirNombre(){
   setTimeout(()=>inp.focus(), 120);
 }
 
+/* ---------- instalación como aplicación ----------
+   Con el manifiesto y el service worker, Android ofrece instalarla: queda con
+   ícono propio, a pantalla completa y abre sin señal.                        */
+let promesaInstalar = null;
+if("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  });
+}
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  promesaInstalar = e;
+  $("#btnInstalar").classList.remove("hide");
+});
+window.addEventListener("appinstalled", () => {
+  $("#btnInstalar").classList.add("hide");
+  toast("Aplicación instalada");
+});
+
 /* ---------- arranque ---------- */
 (async function(){
   await cargarCatalogo();
@@ -1081,6 +1107,13 @@ function pedirNombre(){
   $("#btnRecargar").onclick = cargarAbiertas;
   $("#btnActualizarL").onclick = cargarListas;
   $("#btnCambiarQuien").onclick = pedirNombre;
+  $("#btnInstalar").onclick = async () => {
+    if(!promesaInstalar) return;
+    promesaInstalar.prompt();
+    const r = await promesaInstalar.userChoice;
+    if(r.outcome === "accepted") $("#btnInstalar").classList.add("hide");
+    promesaInstalar = null;
+  };
   if(!state.quien) pedirNombre();
   $("#btnGuardar").onclick = guardar;
   $("#btnLimpiar").onclick = limpiar;

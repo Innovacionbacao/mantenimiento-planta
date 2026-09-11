@@ -356,6 +356,13 @@
       <span>Dirección del servicio</span>
       <input type="text" id="cfg_srv" placeholder="https://…workers.dev" style="width:100%;margin-top:6px">
     </div>
+    <div class="setting" style="display:block">
+      <span>Avisos en este teléfono</span>
+      <p style="font-size:12.5px;margin:4px 0 8px">Recibe una notificación cuando se cierre una
+        orden y cuando haya mantenimientos por vencerse.</p>
+      <button class="btn ghost" type="button" id="btnAvisos" style="padding:8px 12px;font-size:13.5px">Activar avisos</button>
+      <span id="estadoAvisos" style="font-size:12.5px;margin-left:8px"></span>
+    </div>
     <div class="setting" style="flex-wrap:wrap;gap:8px">
       <button class="btn ghost" type="button" id="btnCsv" style="padding:8px 12px;font-size:13.5px">Descargar CSV</button>
       <button class="btn ghost" type="button" id="btnBloquear" style="padding:8px 12px;font-size:13.5px">Bloquear</button>
@@ -1092,6 +1099,60 @@ window.addEventListener("appinstalled", () => {
   toast("Aplicación instalada");
 });
 
+/* ---------- avisos en el celular ---------- */
+const CLAVE_PUBLICA = "BBWujCN4L0_C1UD5UEhmQyP6qj3GmHV-fwKdOskBKQy3zz78Jp6qNUyHd2r91TZbmDCHsgVDMMgEfskhiOQppSU";
+
+function aBytes(base64){
+  const s = (base64 + "=".repeat((4 - base64.length % 4) % 4)).replace(/-/g,"+").replace(/_/g,"/");
+  const b = atob(s), a = new Uint8Array(b.length);
+  for(let i=0;i<b.length;i++) a[i] = b.charCodeAt(i);
+  return a;
+}
+
+async function estadoAvisos(){
+  const et = $("#estadoAvisos"), btn = $("#btnAvisos");
+  if(!("Notification" in window) || !("serviceWorker" in navigator)){
+    et.textContent = "Este teléfono no los admite"; btn.classList.add("hide"); return;
+  }
+  if(Notification.permission === "denied"){
+    et.textContent = "Bloqueados en los ajustes del navegador"; btn.disabled = true; return;
+  }
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sus = reg ? await reg.pushManager.getSubscription() : null;
+  btn.textContent = sus ? "Desactivar avisos" : "Activar avisos";
+  et.textContent = sus ? "activos" : "";
+  btn.dataset.activo = sus ? "1" : "";
+}
+
+async function alternarAvisos(){
+  const btn = $("#btnAvisos");
+  const reg = await navigator.serviceWorker.getRegistration();
+  if(!reg){ toast("Instala la aplicación primero"); return; }
+  btn.disabled = true;
+  try{
+    const sus = await reg.pushManager.getSubscription();
+    if(sus){
+      await fetch(urlServicio() + "/desuscribir?k=" + encodeURIComponent(CLAVE_SERVIDOR),
+        {method:"POST", headers:{"Content-Type":"application/json"},
+         body: JSON.stringify({endpoint: sus.endpoint})});
+      await sus.unsubscribe();
+      toast("Avisos desactivados");
+    }else{
+      const permiso = await Notification.requestPermission();
+      if(permiso !== "granted"){ toast("No se dio permiso para los avisos"); btn.disabled = false; return; }
+      const nueva = await reg.pushManager.subscribe({
+        userVisibleOnly: true, applicationServerKey: aBytes(CLAVE_PUBLICA)});
+      const r = await fetch(urlServicio() + "/suscribir?k=" + encodeURIComponent(CLAVE_SERVIDOR),
+        {method:"POST", headers:{"Content-Type":"application/json"},
+         body: JSON.stringify({endpoint: nueva.endpoint, quien: state.quien})});
+      if(!r.ok) throw new Error("el servicio no aceptó el registro");
+      toast("Avisos activados en este teléfono");
+    }
+  }catch(e){ toast("No se pudo: " + e.message); }
+  btn.disabled = false;
+  estadoAvisos();
+}
+
 /* ---------- arranque ---------- */
 (async function(){
   await cargarCatalogo();
@@ -1107,6 +1168,8 @@ window.addEventListener("appinstalled", () => {
   $("#btnRecargar").onclick = cargarAbiertas;
   $("#btnActualizarL").onclick = cargarListas;
   $("#btnCambiarQuien").onclick = pedirNombre;
+  $("#btnAvisos").onclick = alternarAvisos;
+  estadoAvisos();
   $("#btnInstalar").onclick = async () => {
     if(!promesaInstalar) return;
     promesaInstalar.prompt();
